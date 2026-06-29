@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from app.espacios.router import router as espacios_router
+from app.reservas.router import router as reservas_router
+from app.reportes.router import router as reportes_router
 
 app = FastAPI(
     title="AXIS API - Sistema de Gestión Universitaria",
@@ -16,3 +18,5 @@ def read_root():
     }
 
 app.include_router(espacios_router)
+app.include_router(reservas_router)
+app.include_router(reportes_router)
