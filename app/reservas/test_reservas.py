@@ -16,7 +16,7 @@ def test_crear_reserva_valida():
 def test_crear_reserva_nombre_materia_corto():
     datos = {
         "espacio_id": "649c12a3f1234567890abcdef",
-        "materia": "PR",  # Error: min_length es 3
+        "materia": "PR",
         "docente": "Ing. Juan Pérez",
         "hora_inicio": "2026-06-29T07:00:00",
         "hora_fin": "2026-06-29T09:00:00"

@@ -11,14 +11,14 @@ def test_crear_espacio_valido():
     }
     espacio = EspacioCreate(**datos)
     assert espacio.nombre == "Laboratorio de Computación 3"
-    assert espacio.estado_actual == "disponible"  # Verifica el valor por defecto
-    assert espacio.equipamiento == []             # Verifica la lista vacía por defecto
+    assert espacio.estado_actual == "disponible"  
+    assert espacio.equipamiento == []          
 
 def test_crear_espacio_tipo_invalido():
     datos = {
         "nombre": "Aula 101",
         "bloque": "Bloque A",
-        "tipo": "discoteca",  # Error: No es 'aula' ni 'laboratorio'
+        "tipo": "discoteca", 
         "capacidad": 20
     }
     with pytest.raises(ValidationError) as exc_info:
@@ -30,7 +30,7 @@ def test_crear_espacio_capacidad_invalida():
         "nombre": "Aula 101",
         "bloque": "Bloque A",
         "tipo": "aula",
-        "capacidad": 0  # Error: Debe ser mayor que 0 (gt=0)
+        "capacidad": 0 
     }
     with pytest.raises(ValidationError):
         EspacioCreate(**datos)

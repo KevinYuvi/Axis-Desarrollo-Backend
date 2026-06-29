@@ -1,17 +1,18 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from app.espacios.router import router as espacios_router
 
-app = FastAPI(title="AXIS API - Desarrollo Local")
-
-# CONFIGURACIÓN DE CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="AXIS API - Sistema de Gestión Universitaria",
+    description="Backend desarrollado bajo una arquitectura de Monolito Modular para controlar espacios, reservas e incidencias.",
+    version="1.0.0",
+    docs_url="/docs",
 )
 
-@app.get("/")
+@app.get("/", tags=["Root"])
 def read_root():
-    return {"status": "online", "message": "El backend de AXIS está corriendo localmente"}
+    return {
+        "status": "online",
+        "message": "Bienvenido a la API de AXIS Backend",
+    }
+
+app.include_router(espacios_router)

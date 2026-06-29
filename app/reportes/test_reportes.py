@@ -10,14 +10,14 @@ def test_crear_reporte_valido():
     }
     reporte = ReporteCreate(**datos)
     assert reporte.gravedad == "media"
-    assert reporte.estado == "abierto"  # Verifica estado por defecto
+    assert reporte.estado == "abierto"  
     assert reporte.fecha_reporte is not None
 
 def test_crear_reporte_gravedad_invalida():
     datos = {
         "espacio_id": "649c12a3f1234567890abcdef",
         "descripcion": "Fallo total de las luces del aula.",
-        "gravedad": "critica"  # Error: No pertenece a baja, media o alta
+        "gravedad": "critica" 
     }
     with pytest.raises(ValidationError):
         ReporteCreate(**datos)
