@@ -4,3 +4,8 @@ pydantic
 pymongo>=4.9.0
 motor>=3.6.0
 pytest
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+pyjwt==2.10.1
+python-multipart==0.0.19
+email-validator==2.2.0
