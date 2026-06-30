@@ -12,7 +12,6 @@ coleccion_espacios = db["espacios"]
 
 @router.post("/", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED)
 async def crear_reserva(reserva: ReservaCreate):
-    print("Validando ...")
     # 1. Validar que el string espacio_id tenga el formato correcto de MongoDB
     try:
         id_espacio_objeto = ObjectId(reserva.espacio_id)
