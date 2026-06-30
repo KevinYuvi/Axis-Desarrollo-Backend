@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.reservas.schemas import ReservaCreate, ReservaResponse
 from app.database import db
+from app.usuarios.utils import obtener_usuario_actual
 from bson import ObjectId
 from bson.errors import InvalidId
 
@@ -11,7 +12,10 @@ coleccion_reservas = db["reservas"]
 coleccion_espacios = db["espacios"]
 
 @router.post("/", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED)
-async def crear_reserva(reserva: ReservaCreate):
+async def crear_reserva(
+    reserva: ReservaCreate, 
+    usuario_actual: dict = Depends(obtener_usuario_actual) # 👈 Inyectamos la seguridad aquí
+):
     # 1. Validar formato del espacio_id
     try:
         id_espacio_objeto = ObjectId(reserva.espacio_id)
@@ -29,8 +33,7 @@ async def crear_reserva(reserva: ReservaCreate):
             detail=f"El espacio con ID '{reserva.espacio_id}' no existe"
         )
         
-    # 3. ALGORITMO: Validar que no haya choque de horarios para ese mismo espacio
-    # Las fechas provienen de Pydantic como objetos datetime de Python
+    # 3. Validar que no haya choque de horarios para ese mismo espacio
     reserva_en_conflicto = await coleccion_reservas.find_one({
         "espacio_id": reserva.espacio_id,
         "hora_inicio": {"$lt": reserva.hora_fin},
