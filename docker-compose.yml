@@ -12,7 +12,7 @@ services:
       - MONGO_URI=mongodb://root:axis2026@mongodb:27017/axis_db?authSource=admin
     depends_on:
       - mongodb
-
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
   # Servicio de la Base de Datos (MongoDB)
   mongodb:
     image: mongo:6.0
