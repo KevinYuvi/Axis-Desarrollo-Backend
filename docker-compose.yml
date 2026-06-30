@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Servicio del Backend (FastAPI)
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - MONGO_URI=mongodb://root:axis2026@mongodb:27017/axis_db?authSource=admin
+    depends_on:
+      - mongodb
+
+  # Servicio de la Base de Datos (MongoDB)
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=axis2026
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
