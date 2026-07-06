@@ -6,12 +6,22 @@ class RoleEnum(str, Enum):
     ADMIN = "Admin"
     DOCENTE = "Docente"
     ESTUDIANTE = "Estudiante"
+    AYUDANTE = "Ayudante"
 
 class UserCreate(BaseModel):
     email: EmailStr
     nombre_completo: str
-    password: str = Field(..., min_length=6, description="La contraseña debe tener al menos 6 caracteres")
-    rol: RoleEnum = RoleEnum.ESTUDIANTE # Rol por defecto
+    password: str = Field(
+        ...,
+        min_length=6,
+        description="La contraseña debe tener al menos 6 caracteres"
+    )
+    rol: RoleEnum = RoleEnum.ESTUDIANTE
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 
 class UserResponse(BaseModel):
     id: str
