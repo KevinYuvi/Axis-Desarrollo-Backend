@@ -45,7 +45,28 @@ async def crear_reporte(reporte: ReporteCreate):
 async def listar_reportes():
     reportes = []
     cursor = coleccion_reportes.find()
+    
     async for documento in cursor:
         documento["id"] = str(documento["_id"])
+        
+        if "_id" in documento:
+            del documento["_id"]
+            
+        # 🔥 SOLUCIÓN AL ERROR: Si espacio_id es None o no existe, garantizamos que sea un string
+        if documento.get("espacio_id") is None:
+            # Si tiene el campo 'aula' de esquemas antiguos, lo usamos; si no, string vacío
+            documento["espacio_id"] = documento.get("aula") or ""
+            
+        if "gravedad" not in documento:
+            documento["gravedad"] = documento.get("prioridad", "baja").lower()
+            
+        if "fecha_reporte" not in documento:
+            fecha = documento.get("fecha_creacion")
+            documento["fecha_reporte"] = fecha.isoformat() if hasattr(fecha, "isoformat") else str(fecha) if fecha else datetime.utcnow().isoformat()
+            
+        if "estado" not in documento:
+            documento["estado"] = "abierto"
+
         reportes.append(documento)
+        
     return reportes
