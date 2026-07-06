@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
-import jwt
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -30,6 +30,21 @@ def crear_token_acceso(data: dict) -> str:
     # Firmamos el token JWT
     token_jwt = jwt.encode(a_copiar, SECRET_KEY, algorithm=ALGORITHM)
     return token_jwt
+def verificar_roles(*roles_permitidos):
+    """
+    Dependencia para verificar que el usuario tenga uno de los roles permitidos.
+    """
+
+    async def validador(usuario: dict = Depends(obtener_usuario_actual)):
+        if usuario["rol"] not in roles_permitidos:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para acceder a este recurso."
+            )
+
+        return usuario
+
+    return validador
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
 
@@ -55,3 +70,4 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
         
     except jwt.PyJWTError:
         raise credenciales_exception
+    

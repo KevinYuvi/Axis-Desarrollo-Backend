@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from app.usuarios.schemas import UserCreate, UserResponse
+from app.usuarios.schemas import UserCreate, UserResponse, UserLogin, RoleEnum
 from app.usuarios.utils import hash_password, verificar_password, crear_token_acceso
 from app.database import db
 
@@ -62,3 +62,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     # Retornamos la estructura estándar que exige OAuth2
     return {"access_token": token, "token_type": "bearer"}
+@router.get("/me")
+async def obtener_usuario_actual():
+    return {
+        "mensaje": "Endpoint preparado para obtener datos del usuario autenticado"
+    }
