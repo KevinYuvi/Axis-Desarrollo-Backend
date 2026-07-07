@@ -1,9 +1,8 @@
-import jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
-import jwt
+import jwt  # Asegúrate de tener instalado 'pip install pyjwt'
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -21,16 +20,14 @@ def verificar_password(plain_password: str, hashed_password: str) -> bool:
 def crear_token_acceso(data: dict) -> str:
     """Genera un token JWT firmado con un tiempo de expiración."""
     a_copiar = data.copy()
-    # Tiempo de expiración usando hora actual con zona horaria
     expiracion = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    # Añadimos la fecha de expiración al cuerpo del token (payload)
     a_copiar.update({"exp": expiracion})
     
-    # Firmamos el token JWT
     token_jwt = jwt.encode(a_copiar, SECRET_KEY, algorithm=ALGORITHM)
     return token_jwt
 
+# OAuth2PasswordBearer buscará automáticamente en la cabecera 'Authorization: Bearer <TOKEN>'
+# Funciona perfecto incluso con multipart/form-data en Swagger si estás logueado con el botón Authorize.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
 
 async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
@@ -43,15 +40,23 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
     try:
         # Decodificamos el token usando la misma llave secreta
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        
+        email: str = payload.get("sub")  # Habitualmente 'sub' contiene el email o el id único
         rol: str = payload.get("rol")
-        nombre: str = payload.get("nombre")
+        nombre: str = payload.get("nombre_completo") or payload.get("nombre")
+        usuario_id: str = payload.get("id") or email  # ⚠️ Agregamos el id para que el endpoint de la IA no falle al hacer usuario_actual.get("id")
         
         if email is None or rol is None:
             raise credenciales_exception
             
-        # Retornamos un diccionario con los datos del usuario autenticado
-        return {"email": email, "rol": rol, "nombre": nombre}
+        # Retornamos el diccionario completo con lo que tu endpoint de la IA necesita
+        return {
+            "id": usuario_id, 
+            "email": email, 
+            "rol": rol, 
+            "nombre_completo": nombre
+        }
         
-    except jwt.PyJWTError:
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        # PyJWT maneja estas excepciones específicas para firmas expiradas o tokens alterados
         raise credenciales_exception
