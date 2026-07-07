@@ -88,3 +88,40 @@ async def get_occupancy_recommendation():
         "message": "Recomendación generada correctamente",
         "data": recommendation,
     }
+
+
+@router.post("/spaces/{space_id}/analyze", response_model=OcupacionDetailResponse)
+async def analyze_occupancy_space(space_id: str):
+    """
+    Analiza un espacio mediante el vision-service (Fase 2). Si el vision-service
+    no está disponible, responde igual con los datos mock de Fase 1 sin romper
+    la petición del usuario.
+
+    @param space_id: ID del espacio de estudio a analizar.
+    @return dict: Objeto con estado, mensaje y los detalles del espacio analizado.
+    """
+    try:
+        analysis_result = await service.analyze_space_with_vision(space_id)
+    except Exception:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "message": "Error al analizar el espacio con visión artificial"},
+        )
+
+    if analysis_result is None:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "message": f"No se encontró el espacio con id '{space_id}'"},
+        )
+
+    message = (
+        "Vision service no disponible. Mostrando datos simulados."
+        if analysis_result["usedFallback"]
+        else "Ocupación analizada mediante visión artificial"
+    )
+
+    return {
+        "ok": True,
+        "message": message,
+        "data": analysis_result["space"],
+    }

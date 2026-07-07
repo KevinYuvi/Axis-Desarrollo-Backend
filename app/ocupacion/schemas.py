@@ -26,7 +26,7 @@ class EspacioOcupacion(BaseModel):
     occupancyPercent: Optional[int] = Field(default=None, ge=0, le=100, example=45)
     status: EstadoOcupacion = Field(..., example="Disponible")
     updatedAt: datetime
-    source: Literal["mock"] = "mock"
+    source: Literal["mock", "vision-service", "vision-service-fallback"] = "mock"
     aiEnabled: bool = True
     detectionMethod: str = "mock_vision_ready"
     recommendationReason: Optional[str] = None

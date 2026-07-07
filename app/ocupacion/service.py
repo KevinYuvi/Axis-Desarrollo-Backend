@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from app.ocupacion.mock_data import RAW_SPACES
+from app.ocupacion import vision_client
+from app.ocupacion.mock_data import RAW_SPACES, SPACE_VISION_SOURCES
 from app.ocupacion.schemas import EspacioOcupacion
 
 
@@ -107,3 +108,83 @@ def get_recommendation() -> Optional[dict]:
     confidence = round(max(0.5, min(0.99, 1 - (best_candidate.occupancyPercent / 100) * 0.6)), 2)
 
     return {"space": best_candidate, "reason": reason, "confidence": confidence}
+
+
+def _build_vision_analyze_payload(space: EspacioOcupacion, space_id: str) -> Optional[dict]:
+    """
+    Construye el payload que se envía al vision-service para un espacio,
+    usando la fuente de imagen/video configurada en SPACE_VISION_SOURCES.
+
+    @param space: espacio base con los datos estáticos de Fase 1
+    @param space_id: identificador del espacio
+    @return: payload listo para POST /vision/analyze, o None si el espacio no tiene fuente configurada
+    """
+    vision_source = SPACE_VISION_SOURCES.get(space_id)
+    if vision_source is None:
+        return None
+
+    return {
+        "spaceId": space_id,
+        "spaceName": space.name,
+        "totalSeats": space.totalSeats,
+        "computersTotal": space.computersTotal,
+        "sourceType": vision_source["sourceType"],
+        "sourcePath": vision_source["sourcePath"],
+    }
+
+
+def _merge_vision_result_into_space(base_space: EspacioOcupacion, vision_data: dict) -> EspacioOcupacion:
+    """
+    Combina el resultado del vision-service sobre el espacio base de Fase 1,
+    conservando los campos que el vision-service no conoce (edificio, piso,
+    salas de estudio, distancia, etc.) y actualizando solo las métricas de
+    ocupación calculadas mediante visión artificial.
+
+    @param base_space: espacio base con los datos estáticos de Fase 1
+    @param vision_data: diccionario "data" devuelto por el vision-service
+    @return: espacio actualizado con el mismo contrato de EspacioOcupacion
+    """
+    status = vision_data["status"]
+    recommendation_reason = _build_reason(
+        {
+            "freeSeats": vision_data["freeSeats"],
+            "computersAvailable": vision_data["computersAvailable"],
+            "distanceMinutes": base_space.distanceMinutes,
+        },
+        status,
+    )
+
+    return base_space.model_copy(update={
+        "occupiedSeats": vision_data["occupiedSeats"],
+        "freeSeats": vision_data["freeSeats"],
+        "computersAvailable": vision_data["computersAvailable"],
+        "occupancyPercent": vision_data["occupancyPercent"],
+        "status": status,
+        "updatedAt": datetime.now(timezone.utc),
+        "source": vision_data["source"],
+        "detectionMethod": vision_data["detectionMethod"],
+        "recommendationReason": recommendation_reason,
+    })
+
+
+async def analyze_space_with_vision(space_id: str) -> Optional[dict]:
+    """
+    Analiza un espacio consultando al vision-service. Si el vision-service no
+    responde (apagado, timeout, error), cae de vuelta a los datos mock de
+    Fase 1 sin romper la petición del usuario.
+
+    @param space_id: identificador del espacio a analizar
+    @return: {"space": EspacioOcupacion, "usedFallback": bool}, o None si el espacio no existe
+    """
+    base_space = get_space_by_id(space_id)
+    if base_space is None:
+        return None
+
+    analyze_payload = _build_vision_analyze_payload(base_space, space_id)
+    vision_data = await vision_client.request_analysis(analyze_payload) if analyze_payload else None
+
+    if vision_data is None:
+        return {"space": base_space, "usedFallback": True}
+
+    updated_space = _merge_vision_result_into_space(base_space, vision_data)
+    return {"space": updated_space, "usedFallback": False}
