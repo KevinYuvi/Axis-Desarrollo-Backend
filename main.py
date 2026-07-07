@@ -3,13 +3,21 @@ from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
+from app.incidencias.router import router as incidencias_router
+
 
 app = FastAPI(
     title="AXIS API - Sistema de Gestión Universitaria",
-    description="Backend desarrollado bajo una arquitectura de Monolito Modular para controlar espacios, reservas e incidencias.",
+    description="Backend para la gestión de espacios, usuarios, reservas, reportes e incidencias.",
     version="1.0.0",
-    docs_url="/docs",
-)
+    )
+
+app.include_router(espacios_router)
+app.include_router(reservas_router)
+app.include_router(reportes_router)
+app.include_router(usuarios_router)
+app.include_router(incidencias_router)
+
 
 @app.get("/", tags=["Root"])
 def read_root():
