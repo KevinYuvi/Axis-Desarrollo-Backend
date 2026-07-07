@@ -1,8 +1,12 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
+
+API_PREFIX = "/api/v1"
 
 app = FastAPI(
     title="AXIS API - Sistema de Gestión Universitaria",
@@ -11,6 +15,16 @@ app = FastAPI(
     docs_url="/docs",
 )
 
+# CORS para permitir conexión desde React Native / Expo durante desarrollo
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/", tags=["Root"])
 def read_root():
     return {
@@ -18,7 +32,8 @@ def read_root():
         "message": "Bienvenido a la API de AXIS Backend",
     }
 
-app.include_router(espacios_router)
-app.include_router(reservas_router)
-app.include_router(reportes_router)
-app.include_router(usuarios_router)
+
+app.include_router(espacios_router, prefix=API_PREFIX)
+app.include_router(reservas_router, prefix=API_PREFIX)
+app.include_router(reportes_router, prefix=API_PREFIX)
+app.include_router(usuarios_router, prefix=API_PREFIX)
