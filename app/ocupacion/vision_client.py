@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import List
 
 import httpx
 
@@ -9,31 +9,29 @@ import httpx
 # - ambos en docker-compose:                 http://vision-service:8001
 VISION_SERVICE_URL = os.getenv("VISION_SERVICE_URL", "http://localhost:8001")
 
-# Generoso a propósito: la primera detección con YOLO puede tardar varios
-# segundos (carga del modelo en frío, posible descarga de pesos). Un timeout
-# corto aquí haría caer al fallback de Fase 1 incluso con el vision-service
-# sano, solo por lentitud en el arranque.
-REQUEST_TIMEOUT_SECONDS = 15.0
+# GET /vision/latest solo lee un valor en memoria (el scheduler ya hizo el
+# trabajo pesado de antemano), así que debe responder casi al instante. Un
+# timeout corto aquí evita que una consulta normal del usuario se sienta
+# lenta si el vision-service no responde.
+REQUEST_TIMEOUT_SECONDS = 3.0
 
 # Cliente HTTP reutilizado entre llamadas (evita reabrir la conexión TCP en
-# cada análisis); es seguro compartirlo porque FastAPI corre en un solo loop.
+# cada consulta); es seguro compartirlo porque FastAPI corre en un solo loop.
 _http_client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS)
 
 
-async def request_analysis(analyze_payload: dict) -> Optional[dict]:
+async def get_latest_snapshots() -> List[dict]:
     """
-    Solicita al vision-service el análisis de ocupación de un espacio.
-    Nunca lanza: cualquier error de red, timeout o respuesta inválida se
-    atrapa aquí y se traduce a None, para que quien llama decida usar el
-    fallback de Fase 1 sin romper la petición del usuario.
+    Consulta el último análisis automático (Fase 3) de todos los espacios en
+    el vision-service. Nunca lanza: cualquier error de red, timeout o
+    respuesta inválida se atrapa aquí y se traduce a una lista vacía, para
+    que quien llama use el fallback de Fase 1 sin romper la petición.
 
-    @param analyze_payload: cuerpo esperado por POST /vision/analyze
-    @return: diccionario "data" devuelto por el vision-service, o None si no respondió
+    @return: lista de snapshots de GET /vision/latest, o [] si no respondió
     """
     try:
-        response = await _http_client.post(f"{VISION_SERVICE_URL}/vision/analyze", json=analyze_payload)
+        response = await _http_client.get(f"{VISION_SERVICE_URL}/vision/latest")
         response.raise_for_status()
-        response_body = response.json()
-        return response_body.get("data")
+        return response.json()
     except Exception:
-        return None
+        return []

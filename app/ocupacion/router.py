@@ -14,12 +14,13 @@ router = APIRouter(prefix="/api/occupancy", tags=["Ocupación"])
 @router.get("/spaces", response_model=OcupacionListResponse)
 async def list_occupancy_spaces():
     """
-    Lista todos los espacios de estudio con su ocupación simulada.
-    
+    Lista todos los espacios de estudio, combinados con el último análisis
+    automático del vision-service (Fase 3) cuando esté disponible.
+
     @return dict: Objeto con estado, mensaje y la lista de espacios.
     """
     try:
-        spaces = service.get_spaces()
+        spaces = await service.get_spaces()
     except Exception:
         return JSONResponse(
             status_code=500,
@@ -37,12 +38,12 @@ async def list_occupancy_spaces():
 async def get_occupancy_space(space_id: str):
     """
     Obtiene el detalle de ocupación de un espacio específico.
-    
+
     @param space_id: ID del espacio de estudio.
     @return dict: Objeto con estado, mensaje y los detalles del espacio.
     """
     try:
-        space = service.get_space_by_id(space_id)
+        space = await service.get_space_by_id(space_id)
     except Exception:
         return JSONResponse(
             status_code=500,
@@ -66,11 +67,11 @@ async def get_occupancy_space(space_id: str):
 async def get_occupancy_recommendation():
     """
     Genera y devuelve una recomendación inteligente de espacio de estudio disponible.
-    
+
     @return dict: Objeto con estado, mensaje y los detalles de la recomendación.
     """
     try:
-        recommendation = service.get_recommendation()
+        recommendation = await service.get_recommendation()
     except Exception:
         return JSONResponse(
             status_code=500,
@@ -87,41 +88,4 @@ async def get_occupancy_recommendation():
         "ok": True,
         "message": "Recomendación generada correctamente",
         "data": recommendation,
-    }
-
-
-@router.post("/spaces/{space_id}/analyze", response_model=OcupacionDetailResponse)
-async def analyze_occupancy_space(space_id: str):
-    """
-    Analiza un espacio mediante el vision-service (Fase 2). Si el vision-service
-    no está disponible, responde igual con los datos mock de Fase 1 sin romper
-    la petición del usuario.
-
-    @param space_id: ID del espacio de estudio a analizar.
-    @return dict: Objeto con estado, mensaje y los detalles del espacio analizado.
-    """
-    try:
-        analysis_result = await service.analyze_space_with_vision(space_id)
-    except Exception:
-        return JSONResponse(
-            status_code=500,
-            content={"ok": False, "message": "Error al analizar el espacio con visión artificial"},
-        )
-
-    if analysis_result is None:
-        return JSONResponse(
-            status_code=404,
-            content={"ok": False, "message": f"No se encontró el espacio con id '{space_id}'"},
-        )
-
-    message = (
-        "Vision service no disponible. Mostrando datos simulados."
-        if analysis_result["usedFallback"]
-        else "Ocupación analizada mediante visión artificial"
-    )
-
-    return {
-        "ok": True,
-        "message": message,
-        "data": analysis_result["space"],
     }

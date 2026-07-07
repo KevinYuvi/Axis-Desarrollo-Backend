@@ -91,29 +91,7 @@ RAW_SPACES = [
     },
 ]
 
-# Mapea cada espacio a la imagen/video de prueba que el vision-service debe
-# analizar (Fase 2). Las rutas son relativas a la raíz de vision-service/.
-# Si el archivo no existe, el vision-service responde con datos simulados
-# (source: "vision-service-fallback") en vez de fallar.
-SPACE_VISION_SOURCES = {
-    "biblioteca-fica": {
-        "sourceType": "sample_image",
-        "sourcePath": "samples/BIBLIO1.jpg",
-    },
-    "biblioteca-general": {
-        "sourceType": "sample_image",
-        "sourcePath": "samples/biblioteca_general.jpg",
-    },
-    "sala-grupal-2": {
-        "sourceType": "sample_image",
-        "sourcePath": "samples/sala_grupal_2.jpg",
-    },
-    "laboratorio-computadoras": {
-        "sourceType": "sample_image",
-        "sourcePath": "samples/laboratorio_computadoras.jpg",
-    },
-    "sala-lectura-humanidades": {
-        "sourceType": "sample_image",
-        "sourcePath": "samples/sala_lectura_humanidades.jpg",
-    },
-}
+# Nota (Fase 3): el mapeo espacio -> imagen/video de prueba (antes vivía aquí
+# como SPACE_VISION_SOURCES) se movió a vision-service/app/space_registry.py,
+# porque ahora es el vision-service quien analiza en segundo plano por su
+# cuenta; el backend ya no construye ese payload ni llama a /vision/analyze.
