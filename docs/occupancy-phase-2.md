@@ -1,167 +1,75 @@
-# Fase 2 — Vision Service (imagen/video local de prueba)
+# Axis: Fase 2 - Ocupación Inteligente (Visión Artificial Mock)
 
-## Qué hace esta fase
+Esta documentación describe la arquitectura y el funcionamiento de la **Fase 2** del módulo de ocupación inteligente para el proyecto Axis.
 
-Agrega un microservicio Python independiente (`vision-service/`) que analiza
-una **imagen o video local de prueba** con YOLO (Ultralytics) y cuenta
-personas de forma anónima (clase COCO `"person"`), calculando métricas de
-ocupación con el mismo contrato que ya usa Axis desde la Fase 1.
+## 1. Qué hace la Fase 2
+En esta fase, Axis no usa cámaras reales. El sistema analiza imágenes o videos locales de prueba para validar la arquitectura de visión artificial. La app móvil no procesa imágenes directamente; solo consume métricas calculadas por el backend.
 
-El backend principal (`app/ocupacion/`) consulta ese microservicio a través de
-un nuevo endpoint, adapta la respuesta al contrato existente y la entrega al
-frontend. Si el vision-service no responde, el backend cae de vuelta a los
-datos mock de Fase 1 — la app nunca se rompe por falta de visión artificial.
+El flujo es el siguiente:
+1. **Frontend (Expo)**: El estudiante entra a la lista de bibliotecas o ve un espacio recomendado y toca el botón "Actualizar con visión IA".
+2. **Backend Principal**: Recibe la petición en el endpoint `POST /api/occupancy/spaces/{space_id}/analyze`. Construye el payload incluyendo la ruta de la imagen o video de prueba mapeada a ese espacio.
+3. **Microservicio de Visión (`vision-service`)**: Recibe la petición en `POST /vision/analyze`. Carga un modelo YOLOv8 local y cuenta la cantidad de personas (clase `person`) en el archivo multimedia enviado.
+4. **Respuesta**: El vision-service calcula los asientos libres, el porcentaje de ocupación y el estado (Disponible, Próximo, Ocupado) basándose en las personas detectadas. El Backend Principal combina esta data con la información estática del espacio y se la retorna a la aplicación móvil.
 
-> En esta fase Axis no usa cámaras reales. El sistema analiza imágenes o
-> videos locales de prueba para validar la arquitectura de visión artificial.
-> La app móvil no procesa imágenes directamente; solo consume métricas
-> calculadas por el backend.
+## 2. Qué NO hace todavía (Pendiente para Fase 3)
+- No hay cámaras IP conectadas en tiempo real.
+- No hay guardado persistente en una Base de Datos real. Las consultas se hacen "on-demand" y sobre datos simulados (`mock_data.py`).
+- No se realiza detección ni reconocimiento facial. El modelo solo cuenta cajas delimitadoras (`bounding boxes`) correspondientes a personas de forma completamente anónima.
 
-## Qué NO hace todavía
+## 3. Estructura del Vision Service
+El código fuente del microservicio de visión se encuentra en la carpeta `vision-service/` dentro del repositorio del Backend Principal.
 
-- No usa cámaras reales ni transmisión en vivo.
-- No guarda fotos, videos ni rostros — el vision-service no persiste nada.
-- No hace reconocimiento facial ni identifica personas — solo cuenta objetos
-  de la clase `"person"` de forma anónima.
-- No persiste el resultado del análisis: `POST /spaces/:id/analyze` es
-  _stateless_. `GET /api/occupancy/spaces` sigue mostrando el mock de Fase 1
-  hasta que exista una capa de persistencia (Fase 3).
-- No agrega autenticación ni rate-limiting al vision-service.
+- `app/main.py`: Endpoints de FastAPI (`/vision/health` y `/vision/analyze`).
+- `app/detector.py`: Carga el modelo de Ultralytics YOLO (`yolov8n.pt`) y maneja el conteo de personas en fotos o videos usando OpenCV.
+- `app/occupancy_calculator.py`: Transforma los conteos de personas en métricas de negocio (porcentajes de ocupación, estados lógicos, y aplica fallback si falla el modelo).
 
-## Arquitectura
+## 4. Cómo levantar el Vision Service
 
-```
-Frontend Expo
-   |  POST /api/occupancy/spaces/:id/analyze
-   v
-Backend principal (FastAPI)  --VISION_SERVICE_URL-->  vision-service (FastAPI + YOLO)
-   |                                                        |
-   | si vision-service no responde:                         | si no existe la imagen/video
-   | usa mock de Fase 1 (source: "mock")                    | o YOLO no carga:
-   |                                                        | responde simulado
-   v                                                        | (source: "vision-service-fallback")
-Respuesta unificada (mismo contrato EspacioOcupacion)
-```
+**Requisitos**: Python 3.10+ instalado.
 
-## Cómo levantar todo
+1. Abre una terminal (PowerShell recomendada) y navega a la carpeta del microservicio:
+   ```powershell
+   cd vision-service
+   ```
+2. Crea y activa un entorno virtual de Python:
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+3. Instala las dependencias de visión (YOLO, OpenCV, etc.):
+   ```powershell
+   pip install -r requirements.txt
+   ```
+4. Inicia el servidor usando Uvicorn:
+   ```powershell
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+   ```
+> El servicio quedará corriendo en el puerto `8001`. El backend principal de Axis espera encontrarlo allí (a menos que se cambie la variable de entorno `VISION_SERVICE_URL`).
 
-### 1. Vision-service (puerto 8001)
+## 5. Pruebas y Validación
 
-```powershell
-cd vision-service
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-```
-
-No es necesario colocar imágenes reales para probar — sin ellas, el servicio
-responde en modo fallback simulado (ver `vision-service/samples/README.md`).
-
-### 2. Backend principal (puerto 8000)
+### Probar el vision-service directamente
+Desde otra ventana de PowerShell, puedes enviar un payload simulado para verificar que YOLO esté infiriendo correctamente:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+$body = @{
+  spaceId = "biblioteca-fica"
+  spaceName = "Biblioteca FICA"
+  totalSeats = 40
+  computersTotal = 12
+  sourceType = "sample_image"
+  sourcePath = "samples/BIBLIO1.jpg"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8001/vision/analyze" -Method POST -Body $body -ContentType "application/json"
 ```
 
-**Importante:** siempre usar `--host 0.0.0.0`, no solo `uvicorn main:app --reload`.
-Sin ese flag, uvicorn escucha únicamente en `127.0.0.1` (solo la propia PC) y
-el celular no puede alcanzarlo por WiFi — cada consulta desde la app se queda
-esperando el timeout de red antes de caer al fallback, lo que se siente como
-"la app está lenta" aunque los datos sean mock y la consulta en sí sea instantánea.
+### Probar desde la App (Frontend)
+1. Inicia el `vision-service` (puerto 8001).
+2. Inicia el Backend principal (puerto 8000).
+3. Inicia la aplicación móvil Expo y asegúrate de que apunte a la IP de tu red local.
+4. Toca "Actualizar con visión IA" en la tarjeta de la Biblioteca FICA.
+5. Deberás ver que la información se actualiza, la tarjeta muestra el loader, y al finalizar cambia su "Fuente" a "Visión IA" con las métricas derivadas de la imagen `BIBLIO1.jpg`.
 
-`VISION_SERVICE_URL` tiene como default `http://localhost:8001` — no hace
-falta configurar nada si ambos corren localmente. Otros escenarios:
-
-| Escenario                               | `VISION_SERVICE_URL`                                                           |
-| --------------------------------------- | ------------------------------------------------------------------------------ |
-| Backend local + vision-service local    | `http://localhost:8001` (default)                                              |
-| Backend en Docker, vision-service local | `http://host.docker.internal:8001`                                             |
-| Ambos en `docker-compose`               | `http://vision-service:8001` (descomentar el servicio en `docker-compose.yml`) |
-
-### 3. Frontend Expo
-
-Sin cambios respecto a Fase 1: configurar `src/shared/config/api.js` con la
-IP local de la PC y `npx expo start`.
-
-## Puertos (referencia única — no deben pisarse entre sí)
-
-| Servicio | Puerto | Quién lo consulta |
-|---|---|---|
-| Backend principal (FastAPI) | `8000` | Frontend Expo (vía `API_BASE_URL`) |
-| Vision-service (FastAPI + YOLO) | `8001` | Solo el backend principal (`VISION_SERVICE_URL`), nunca el frontend directamente |
-| MongoDB | `27017` | Solo el backend principal |
-| Metro (dev server de Expo) | `8081` (default) | Solo el celular/emulador, gestionado por `expo start` |
-
-El frontend **nunca** habla directo con el vision-service — siempre pasa por
-el backend principal, que decide si usarlo o caer al mock. Si ves que el
-frontend intenta pegarle a `:8001`, algo está mal configurado en `api.js`.
-
-## Cómo probar
-
-**Vision-service:**
-
-```
-GET  http://localhost:8001/vision/health
-POST http://localhost:8001/vision/analyze
-```
-
-con body:
-
-```json
-{
-  "spaceId": "biblioteca-fica",
-  "spaceName": "Biblioteca FICA",
-  "totalSeats": 40,
-  "computersTotal": 12,
-  "sourceType": "sample_image",
-  "sourcePath": "samples/BIBLIO1.jpg"
-}
-```
-
-**Backend principal:**
-
-```
-POST http://localhost:8000/api/occupancy/spaces/biblioteca-fica/analyze
-```
-
-- Con vision-service arriba → `message: "Ocupación analizada mediante visión artificial"`.
-- Con vision-service apagado → `message: "Vision service no disponible. Mostrando datos simulados."`, `ok: true` (nunca rompe).
-- Espacio inexistente → `404`, `ok: false`.
-
-**Frontend:** en `LibrariesScreen`, cada tarjeta tiene el botón
-"Actualizar con visión IA" y una etiqueta "Fuente: Visión IA" / "Fuente: Simulado".
-
-## Por qué "se sentía lento" (y cómo confirmar que ya no pasa)
-
-Con datos mock, ninguna consulta debería tardar más que la latencia de red.
-Si la app se siente lenta al abrir "Bibliotecas", casi siempre es una de estas
-dos causas — no un problema de rendimiento de las consultas en sí:
-
-1. **El backend no escucha en `0.0.0.0`** (ver nota de arriba). Cada request
-   del celular se queda esperando el timeout antes de caer al fallback.
-2. **Firewall de Windows** bloqueando conexiones entrantes al puerto 8000 desde
-   la red local. Si tras usar `--host 0.0.0.0` sigue lento/fallando, revisa que
-   el perfil de red sea "Privada" (no "Pública") y permite Python/uvicorn en el
-   Firewall de Windows Defender.
-
-Para confirmar que el backend es alcanzable desde el celular, abre el navegador
-del celular (mismo WiFi) en `http://TU_IP:8000/docs` — si carga el Swagger,
-la conectividad está bien y cualquier lentitud restante es de la red, no del código.
-
-El frontend además comparte un solo estado de ocupación entre "Inicio" y
-"Bibliotecas" (`OccupancyProvider`) — navegar entre esas pantallas no vuelve a
-consultar el backend, solo la primera carga de la app lo hace.
-
-## Qué queda para Fase 3
-
-- Persistir el resultado del análisis (base de datos) para que `GET /spaces`
-  refleje la última ocupación medida, no solo el mock estático.
-- Conectar cámaras reales / streaming en vivo en vez de imágenes de prueba.
-- Agregación temporal (histórico de ocupación, tendencias por hora).
-- Autenticación entre backend principal y vision-service.
-- Pantalla de detalle de espacio dedicada en el frontend (hoy la acción vive
-  en la tarjeta de la lista).
+## 6. Fallback Resiliente
+Si el `vision-service` está apagado o falla, el Backend Principal detectará el error y retornará un indicador `usedFallback = True`. La aplicación móvil seguirá funcionando y mostrará que la fuente es "Simulado", garantizando que el usuario nunca vea la app romperse.
