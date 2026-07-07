@@ -1,14 +1,34 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from typing import List
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import occupancy_calculator
-from app.schemas import AnalyzeRequest, AnalyzeResponse, HealthResponse
+from app import occupancy_calculator, scheduler, storage
+from app.schemas import AnalyzeRequest, AnalyzeResponse, HealthResponse, LatestAnalysisItem
+
+logging.basicConfig(level=logging.INFO)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lanza el scheduler de análisis automático al iniciar el servicio y lo
+    cancela limpiamente al apagarlo.
+    """
+    scheduler_task = asyncio.create_task(scheduler.run_scheduler_loop())
+    yield
+    scheduler_task.cancel()
+
 
 app = FastAPI(
     title="Axis Vision Service",
-    description="Microservicio de visión artificial de Axis (Fase 2 — imagen/video local de prueba).",
-    version="0.1.0",
+    description="Microservicio de visión artificial de Axis (Fase 3 — análisis automático en segundo plano).",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 # Habilitado para desarrollo: el backend principal de Axis puede consultarlo
@@ -35,8 +55,9 @@ async def check_vision_service_health():
 @app.post("/vision/analyze", response_model=AnalyzeResponse)
 async def analyze_occupancy_from_sample(request: AnalyzeRequest):
     """
-    Analiza un espacio a partir de una imagen/video local de prueba y devuelve
-    las métricas de ocupación calculadas. Nunca expone detalles internos del
+    Analiza un espacio puntual a partir de una imagen/video local de prueba
+    (uso manual/debug — el flujo automático de Fase 3 usa el scheduler y
+    GET /vision/latest, no este endpoint). Nunca expone detalles internos del
     error (stack trace); ante cualquier fallo inesperado responde 500 controlado.
 
     @param request: datos del espacio y de la fuente de imagen/video a analizar
@@ -55,3 +76,16 @@ async def analyze_occupancy_from_sample(request: AnalyzeRequest):
         "message": "Análisis de ocupación generado correctamente",
         "data": analysis_result,
     }
+
+
+@app.get("/vision/latest", response_model=List[LatestAnalysisItem])
+async def get_latest_occupancy_analysis():
+    """
+    Devuelve el último análisis en memoria de cada espacio, generado
+    automáticamente por el scheduler cada ANALYSIS_INTERVAL_SECONDS. Antes de
+    que el scheduler complete su primer ciclo, la lista puede venir vacía.
+
+    @return: lista de resultados de análisis, uno por espacio ya analizado
+    """
+    stored_analyses = storage.get_all_analysis()
+    return [occupancy_calculator.to_latest_analysis_item(analysis) for analysis in stored_analyses]

@@ -128,3 +128,22 @@ def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
         aiEnabled=True,
         updatedAt=datetime.now(timezone.utc),
     )
+
+
+def to_latest_analysis_item(stored_analysis: dict) -> dict:
+    """
+    Convierte un análisis guardado (formato AnalyzeData serializado) al
+    contrato más liviano que expone GET /vision/latest.
+
+    @param stored_analysis: análisis tal como lo guardó el scheduler en el storage
+    @return: diccionario listo para validar contra LatestAnalysisItem
+    """
+    return {
+        "spaceId": stored_analysis["spaceId"],
+        "personCount": stored_analysis["peopleCount"],
+        "freeSeats": stored_analysis["freeSeats"],
+        "occupancyPercentage": stored_analysis["occupancyPercent"],
+        "status": stored_analysis["status"],
+        "analyzedAt": stored_analysis["updatedAt"],
+        "source": stored_analysis["source"],
+    }

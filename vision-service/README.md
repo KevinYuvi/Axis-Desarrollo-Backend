@@ -1,11 +1,17 @@
 # Axis Vision Service
 
-Microservicio de visión artificial de Axis (Fase 2). Analiza una imagen o
-video **local** de prueba con YOLO y cuenta personas de forma anónima para
+Microservicio de visión artificial de Axis. Analiza imágenes o videos
+**locales** de prueba con YOLO y cuenta personas de forma anónima para
 calcular métricas de ocupación compatibles con el contrato que ya usa Axis.
 
 No usa cámaras reales, no guarda fotos/videos/rostros, no hace reconocimiento
 facial ni identifica personas — solo cuenta objetos de la clase `"person"`.
+
+Desde la Fase 3, un **scheduler interno** analiza automáticamente todos los
+espacios cada 30 segundos y guarda el último resultado en memoria — no hace
+falta pedir un análisis puntual para que la ocupación se mantenga al día.
+Ver `docs/occupancy-phase-3.md` en la raíz del repositorio backend para el
+detalle completo.
 
 ## Cómo levantarlo (local)
 
@@ -73,6 +79,25 @@ modelo no está disponible — ver `data.source`):
 }
 ```
 
+### `GET /vision/latest`
+Devuelve el último análisis automático (generado por el scheduler) de todos
+los espacios del registro (`app/space_registry.py`). Antes de que el
+scheduler complete su primer ciclo (unos segundos tras iniciar), puede venir
+vacío (`[]`).
+```json
+[
+  {
+    "spaceId": "biblioteca-fica",
+    "personCount": 18,
+    "freeSeats": 22,
+    "occupancyPercentage": 45,
+    "status": "Disponible",
+    "analyzedAt": "2026-07-07T15:00:00Z",
+    "source": "vision-service"
+  }
+]
+```
+
 ## Configuración (variables de entorno opcionales)
 
 | Variable | Default | Descripción |
@@ -85,4 +110,4 @@ modelo no está disponible — ver `data.source`):
 
 ## Integración con el backend principal
 
-Ver `docs/occupancy-phase-2.md` en la raíz del repositorio backend.
+Ver `docs/occupancy-phase-3.md` en la raíz del repositorio backend.

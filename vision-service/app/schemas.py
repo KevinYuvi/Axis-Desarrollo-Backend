@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 # ENTIDAD DE ANÁLISIS DE VISIÓN (Fase 2 — imagen/video local de prueba)
@@ -44,6 +44,20 @@ class AnalyzeResponse(BaseModel):
 class VisionErrorResponse(BaseModel):
     ok: bool = False
     message: str
+
+
+class LatestAnalysisItem(BaseModel):
+    """Entrada de GET /vision/latest — el último análisis en memoria de un espacio."""
+
+    spaceId: str
+    personCount: int
+    freeSeats: int
+    occupancyPercentage: Optional[int]
+    status: OccupancyStatus
+    analyzedAt: datetime
+    # No estaba en el contrato pedido para esta fase, pero sin este campo el
+    # frontend perdería la etiqueta "Fuente: Visión IA / Simulado" de Fase 2.
+    source: VisionSource
 
 
 class HealthResponse(BaseModel):

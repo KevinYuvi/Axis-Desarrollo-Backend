@@ -15,16 +15,17 @@ samples/laboratorio_computadoras.jpg o samples/laboratorio_computadoras.mp4
 samples/sala_lectura_humanidades.jpg o samples/sala_lectura_humanidades.mp4
 ```
 
-Estos nombres son los que el backend principal envía como `sourcePath` para
-cada espacio (ver `app/ocupacion/mock_data.py::SPACE_VISION_SOURCES` en el
-repositorio backend).
+Estos nombres son los que el scheduler del vision-service analiza
+automáticamente cada 30 segundos (ver `app/space_registry.py`, en este mismo
+microservicio, para el detalle de qué espacio usa cada archivo).
 
 ## Qué pasa si no colocas ningún archivo
 
 El servicio **no falla**. Si `sourcePath` no existe, o si el modelo YOLO no
 pudo cargarse (por ejemplo, sin conexión a internet para descargar los pesos
-`yolov8n.pt` la primera vez), `/vision/analyze` responde igual con `ok: true`
-y una ocupación simulada, marcando claramente:
+`yolov8n.pt` la primera vez), tanto el scheduler automático como
+`POST /vision/analyze` responden igual con `ok: true` y una ocupación
+simulada, marcando claramente:
 
 ```json
 "source": "vision-service-fallback"
