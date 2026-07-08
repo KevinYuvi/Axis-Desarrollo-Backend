@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 from typing import Optional
 
@@ -147,5 +148,84 @@ def count_people_in_ip_camera_snapshot(snapshot_url: str) -> Optional[int]:
 
         results = model(frame, verbose=False)
         return _count_person_boxes(results[0], model)
+    except Exception:
+        return None
+
+
+def _draw_person_boxes(frame, detection_result, model):
+    """
+    Dibuja un rectángulo y una etiqueta sobre cada persona detectada que
+    supera el umbral de confianza configurado, usando el mismo criterio que
+    _count_person_boxes (para que las cajas dibujadas coincidan exactamente
+    con la cantidad contada, sin mostrar detecciones descartadas por umbral).
+
+    @param frame: imagen (array de OpenCV) sobre la que se dibuja
+    @param detection_result: resultado de inferencia de Ultralytics para ese frame
+    @param model: instancia de YOLO usada (para resolver nombres de clase)
+    @return: copia del frame con las cajas de las personas detectadas dibujadas
+    """
+    import cv2
+
+    annotated_frame = frame.copy()
+    class_names = model.names
+
+    for box in detection_result.boxes:
+        class_id = int(box.cls[0])
+        confidence = float(box.conf[0])
+        if class_names.get(class_id) != PERSON_CLASS_NAME or confidence < config.PERSON_CONFIDENCE_THRESHOLD:
+            continue
+
+        x1, y1, x2, y2 = map(int, box.xyxy[0])
+        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        label = f"persona {confidence:.0%}"
+        cv2.putText(
+            annotated_frame, label, (x1, max(y1 - 8, 0)),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2,
+        )
+
+    return annotated_frame
+
+
+def analyze_ip_camera_snapshot(snapshot_url: str) -> Optional[dict]:
+    """
+    Captura una foto de la cámara IP y la analiza con YOLO, devolviendo tanto
+    el conteo de personas como la imagen anotada con las cajas de detección
+    (para poder visualizar el tracking en la app) y un hash del frame crudo
+    recibido (para poder detectar en los logs si la cámara está enviando
+    siempre la misma imagen congelada). Nunca lanza: cualquier fallo de red,
+    decodificación o modelo devuelve None.
+
+    @param snapshot_url: URL HTTP que devuelve una foto JPEG (ej. IP Webcam /shot.jpg)
+    @return: dict con peopleCount, annotatedJpeg (bytes) y frameHash, o None si falló
+    """
+    model = _load_yolo_model()
+    if model is None:
+        return None
+
+    try:
+        response = httpx.get(snapshot_url, timeout=5.0)
+        response.raise_for_status()
+        frame_hash = hashlib.md5(response.content).hexdigest()[:12]
+
+        image_array = np.frombuffer(response.content, dtype=np.uint8)
+
+        import cv2
+        frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        if frame is None:
+            return None
+
+        results = model(frame, verbose=False)
+        person_count = _count_person_boxes(results[0], model)
+        annotated_frame = _draw_person_boxes(frame, results[0], model)
+
+        encode_ok, encoded_jpeg = cv2.imencode(".jpg", annotated_frame)
+        if not encode_ok:
+            return None
+
+        return {
+            "peopleCount": person_count,
+            "annotatedJpeg": encoded_jpeg.tobytes(),
+            "frameHash": frame_hash,
+        }
     except Exception:
         return None

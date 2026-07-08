@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app import occupancy_calculator, scheduler, storage
 from app.schemas import AnalyzeRequest, AnalyzeResponse, HealthResponse, LatestAnalysisItem
@@ -89,3 +89,24 @@ async def get_latest_occupancy_analysis():
     """
     stored_analyses = storage.get_all_analysis()
     return [occupancy_calculator.to_latest_analysis_item(analysis) for analysis in stored_analyses]
+
+
+@app.get("/vision/frame/{space_id}")
+async def get_latest_annotated_frame(space_id: str):
+    """
+    Devuelve la última foto anotada (con las cajas de detección dibujadas)
+    capturada por el scheduler para un espacio con cámara IP real, para que
+    la app pueda mostrar visualmente que el tracking es real. Antes del
+    primer ciclo, o si el espacio no tiene cámara real, no hay frame guardado.
+
+    @param space_id: identificador del espacio
+    @return: imagen JPEG anotada, o 404 si todavía no hay ninguna guardada
+    """
+    frame_bytes = storage.get_frame(space_id)
+    if frame_bytes is None:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "message": f"Todavía no hay un frame analizado para '{space_id}'"},
+        )
+
+    return Response(content=frame_bytes, media_type="image/jpeg")

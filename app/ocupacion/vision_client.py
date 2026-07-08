@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 import httpx
 
@@ -35,3 +35,21 @@ async def get_latest_snapshots() -> List[dict]:
         return response.json()
     except Exception:
         return []
+
+
+async def get_latest_frame(space_id: str) -> Optional[bytes]:
+    """
+    Consulta la última foto anotada (con las cajas de detección dibujadas)
+    de un espacio con cámara real. Nunca lanza: cualquier error de red,
+    timeout o respuesta inválida se atrapa aquí y se traduce a None, para
+    que el endpoint del backend responda 404 controlado en vez de romperse.
+
+    @param space_id: identificador del espacio
+    @return: bytes de la imagen JPEG, o None si no está disponible
+    """
+    try:
+        response = await _http_client.get(f"{VISION_SERVICE_URL}/vision/frame/{space_id}")
+        response.raise_for_status()
+        return response.content
+    except Exception:
+        return None

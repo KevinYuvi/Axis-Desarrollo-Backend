@@ -64,3 +64,24 @@ def test_analyze_space_usa_deteccion_real_si_la_camara_ip_responde(monkeypatch):
     assert result.source == "vision-service"
     assert result.detectionMethod == "yolo_ip_camera_snapshot"
     assert result.peopleCount == 3
+
+
+def test_analyze_ip_camera_snapshot_devuelve_none_si_falla_la_peticion(monkeypatch):
+    def fake_get(url, timeout):
+        raise httpx.ConnectError("no se pudo conectar", request=None)
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    assert detector.analyze_ip_camera_snapshot(FAKE_SNAPSHOT_URL) is None
+
+
+def test_analyze_ip_camera_snapshot_devuelve_none_si_la_imagen_no_se_puede_decodificar(monkeypatch):
+    class FakeResponse:
+        content = b"esto-no-es-un-jpeg-valido"
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(httpx, "get", lambda url, timeout: FakeResponse())
+
+    assert detector.analyze_ip_camera_snapshot(FAKE_SNAPSHOT_URL) is None

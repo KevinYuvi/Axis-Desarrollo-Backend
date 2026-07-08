@@ -20,3 +20,14 @@ def test_get_all_analysis_incluye_todos_los_espacios_guardados():
 
     assert {"peopleCount": 1} in all_analysis
     assert {"peopleCount": 2} in all_analysis
+
+
+def test_get_frame_inexistente_devuelve_none():
+    assert storage.get_frame("no-existe") is None
+
+
+def test_save_and_get_frame_guarda_el_ultimo_valor():
+    storage.save_frame("biblioteca-fica", b"jpeg-viejo")
+    storage.save_frame("biblioteca-fica", b"jpeg-nuevo")
+
+    assert storage.get_frame("biblioteca-fica") == b"jpeg-nuevo"

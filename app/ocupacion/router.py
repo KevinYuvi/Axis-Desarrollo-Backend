@@ -1,7 +1,7 @@
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
-from app.ocupacion import service
+from app.ocupacion import service, vision_client
 from app.ocupacion.schemas import (
     OcupacionDetailResponse,
     OcupacionListResponse,
@@ -89,3 +89,23 @@ async def get_occupancy_recommendation():
         "message": "Recomendación generada correctamente",
         "data": recommendation,
     }
+
+
+@router.get("/spaces/{space_id}/frame")
+async def get_occupancy_space_frame(space_id: str):
+    """
+    Devuelve la última foto anotada (con las cajas de detección de personas
+    dibujadas) del espacio, para que la app pueda mostrar visualmente que el
+    tracking es real. Solo existe para espacios con cámara IP conectada.
+
+    @param space_id: ID del espacio de estudio.
+    @return: imagen JPEG, o 404 si el espacio no tiene cámara real o aún no se capturó ningún frame.
+    """
+    frame_bytes = await vision_client.get_latest_frame(space_id)
+    if frame_bytes is None:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "message": f"No hay una imagen analizada disponible para '{space_id}'"},
+        )
+
+    return Response(content=frame_bytes, media_type="image/jpeg")
