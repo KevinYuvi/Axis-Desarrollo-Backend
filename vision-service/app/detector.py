@@ -1,6 +1,9 @@
 from pathlib import Path
 from typing import Optional
 
+import httpx
+import numpy as np
+
 from app import config
 
 # Nombre de la clase COCO que representa personas en los pesos por defecto de YOLO
@@ -116,3 +119,33 @@ def count_people_in_video(video_path: Path) -> Optional[int]:
         return None
 
     return round(sum(frame_person_counts) / len(frame_person_counts))
+
+
+def count_people_in_ip_camera_snapshot(snapshot_url: str) -> Optional[int]:
+    """
+    Detecta personas en una foto obtenida en el momento desde una cámara IP
+    (app "IP Webcam"), pidiendo su endpoint de snapshot por HTTP. Nunca lanza:
+    si la cámara no responde, la respuesta no es una imagen válida, o el modelo
+    no está disponible, devuelve None para que el análisis caiga al modo simulado.
+
+    @param snapshot_url: URL HTTP que devuelve una foto JPEG (ej. IP Webcam /shot.jpg)
+    @return: cantidad de personas detectadas, o None si no fue posible
+    """
+    model = _load_yolo_model()
+    if model is None:
+        return None
+
+    try:
+        response = httpx.get(snapshot_url, timeout=5.0)
+        response.raise_for_status()
+        image_array = np.frombuffer(response.content, dtype=np.uint8)
+
+        import cv2
+        frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        if frame is None:
+            return None
+
+        results = model(frame, verbose=False)
+        return _count_person_boxes(results[0], model)
+    except Exception:
+        return None

@@ -3,3 +3,5 @@ uvicorn
 pydantic
 ultralytics
 opencv-python-headless
+httpx
+numpy

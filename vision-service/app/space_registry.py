@@ -7,6 +7,12 @@
 # (app/ocupacion/mock_data.py) — sin base de datos ni registro compartido
 # todavía, es la forma más simple de que ambos servicios queden desacoplados.
 # Unificar esta fuente de verdad queda pendiente para una fase futura.
+#
+# Fase 4: "biblioteca-fica" ya no usa una imagen de muestra local, sino una
+# foto real capturada por HTTP desde una cámara IP (app "IP Webcam") — ver
+# IP_CAMERA_SNAPSHOT_URL en config.py.
+
+from app import config
 
 SPACE_REGISTRY = [
     {
@@ -14,8 +20,8 @@ SPACE_REGISTRY = [
         "spaceName": "Biblioteca FICA",
         "totalSeats": 40,
         "computersTotal": 12,
-        "sourceType": "sample_image",
-        "sourcePath": "samples/BIBLIO1.jpg",
+        "sourceType": "ip_camera_snapshot",
+        "sourcePath": config.IP_CAMERA_SNAPSHOT_URL,
     },
     {
         "spaceId": "biblioteca-general",

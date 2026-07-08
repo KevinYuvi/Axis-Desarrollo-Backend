@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 # ENTIDAD DE ANÁLISIS DE VISIÓN (Fase 2 — imagen/video local de prueba)
 
-SourceType = Literal["sample_image", "sample_video"]
+SourceType = Literal["sample_image", "sample_video", "ip_camera_snapshot"]
 VisionSource = Literal["vision-service", "vision-service-fallback"]
 OccupancyStatus = Literal["Disponible", "Próximo", "Ocupado", "Sin datos"]
 

@@ -87,18 +87,23 @@ def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
     @param request: payload recibido en POST /vision/analyze
     @return: datos de ocupación calculados, listos para responder al backend principal
     """
-    resolved_path = config.SERVICE_ROOT_DIR / request.sourcePath
-
-    people_count = None
-    detection_method = "fallback_no_sample"
-
-    if resolved_path.exists():
-        people_count = _detect_people_count(request.sourceType, resolved_path)
+    if request.sourceType == "ip_camera_snapshot":
+        people_count = detector.count_people_in_ip_camera_snapshot(request.sourcePath)
         detection_method = (
-            "yolo_local_sample_video" if request.sourceType == "sample_video" else "yolo_local_sample"
+            "yolo_ip_camera_snapshot" if people_count is not None else "fallback_camera_unreachable"
         )
-        if people_count is None:
-            detection_method = "fallback_model_unavailable"
+    else:
+        resolved_path = config.SERVICE_ROOT_DIR / request.sourcePath
+        people_count = None
+        detection_method = "fallback_no_sample"
+
+        if resolved_path.exists():
+            people_count = _detect_people_count(request.sourceType, resolved_path)
+            detection_method = (
+                "yolo_local_sample_video" if request.sourceType == "sample_video" else "yolo_local_sample"
+            )
+            if people_count is None:
+                detection_method = "fallback_model_unavailable"
 
     if people_count is None:
         people_count = _simulate_people_count(request.totalSeats)

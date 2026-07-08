@@ -18,3 +18,10 @@ MAX_VIDEO_SAMPLE_FRAMES = int(os.getenv("VISION_VIDEO_SAMPLE_FRAMES", "5"))
 
 # Proporción usada para simular personas cuando no hay detección real disponible
 FALLBACK_OCCUPANCY_RATIO = float(os.getenv("VISION_FALLBACK_OCCUPANCY_RATIO", "0.4"))
+
+# URL de captura de foto de la cámara IP Webcam para el espacio con cámara real
+# (Fase 4). Reemplazar por la IP real del celular-cámara antes de probar; ver
+# docs/.plans/260708-1317-camera-tracking-realtime/ para el paso a paso.
+IP_CAMERA_SNAPSHOT_URL = os.getenv(
+    "IP_CAMERA_SNAPSHOT_URL", "http://192.168.100.82:8080/shot.jpg"
+)

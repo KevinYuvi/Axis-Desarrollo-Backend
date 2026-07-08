@@ -37,3 +37,6 @@ app.include_router(espacios_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(reportes_router, prefix=API_PREFIX)
 app.include_router(usuarios_router, prefix=API_PREFIX)
+# El router de ocupación ya define su propio prefijo completo "/api/occupancy"
+# (ver app/ocupacion/router.py), por eso NO lleva prefix=API_PREFIX aquí.
+app.include_router(ocupacion_router)
