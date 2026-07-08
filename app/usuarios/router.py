@@ -52,9 +52,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     # Creamos el payload con los datos que queremos almacenar dentro del JWT
     payload = {
+        "id": str(usuario["_id"]),
         "sub": usuario["email"],
         "rol": usuario["rol"],
-        "nombre": usuario["nombre_completo"]
+        "nombre": usuario["nombre_completo"],
     }
     
     # Generamos el token de acceso

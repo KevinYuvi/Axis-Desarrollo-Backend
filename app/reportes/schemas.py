@@ -1,22 +1,43 @@
 from datetime import datetime
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
-from typing import List, Literal
 
-# ENTIDAD REPORTE / INCIDENCIAS
 
-class ReporteBase(BaseModel):
-    espacio_id: str = Field(..., example="649c12a3f1234567890abcdef", description="ID del espacio afectado")
-    descripcion: str = Field(..., min_length=10, max_length=500, example="El proyector del laboratorio parpadea y no da video.")
-    gravedad: Literal["baja", "media", "alta"] = Field(..., example="media")
-    fecha_reporte: datetime = Field(default_factory=datetime.utcnow)
-    estado: Literal["abierto", "en_proceso", "resuelto"] = Field(default="abierto")
+class ReporteCreate(BaseModel):
+    espacio_id: str = Field(
+        ...,
+        example="6a4d3cf5bc6390c0b207e0c8",
+        description="ID del espacio afectado",
+    )
 
-class ReporteCreate(ReporteBase):
-    pass
+    descripcion: str = Field(
+        ...,
+        min_length=10,
+        max_length=500,
+        example="El proyector del laboratorio no enciende.",
+    )
 
-class ReporteResponse(ReporteBase):
-    id: str = Field(..., example="649c66a1f1234567890edcba")
-    
+    gravedad: Literal["baja", "media", "alta"] = Field(
+        ...,
+        example="media",
+    )
+
+
+class ReporteResponse(BaseModel):
+    id: str
+
+    espacio_id: str
+    espacio_nombre: Optional[str] = None
+    espacio_bloque: Optional[str] = None
+
+    descripcion: str
+    gravedad: Literal["baja", "media", "alta"]
+
+    fecha_reporte: datetime
+    estado: Literal["abierto", "en_proceso", "resuelto"]
+
+    usuario_id: Optional[str] = None
+    docente_nombre: Optional[str] = None
 
     class Config:
         from_attributes = True
