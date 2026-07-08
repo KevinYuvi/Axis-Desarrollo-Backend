@@ -13,13 +13,12 @@ coleccion_espacios = db["espacios"]
 
 
 def convertir_espacio(documento: dict) -> dict:
-    """Convierte el documento de MongoDB a un formato compatible con Pydantic."""
     documento["id"] = str(documento["_id"])
+    documento.pop("_id", None)
     return documento
 
 
 def obtener_object_id(id_valor: str) -> ObjectId:
-    """Valida y convierte un string a ObjectId de MongoDB."""
     try:
         return ObjectId(id_valor)
     except InvalidId:
@@ -29,13 +28,23 @@ def obtener_object_id(id_valor: str) -> ObjectId:
         )
 
 
-@router.post("/", response_model=EspacioResponse, status_code=status.HTTP_201_CREATED)
-async def crear_espacio(espacio: EspacioCreate):
+@router.post(
+    "/",
+    response_model=EspacioResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear espacio académico",
+)
+async def crear_espacio(
+    espacio: EspacioCreate,
+    usuario_actual: dict = Depends(requerir_roles("Admin")),
+):
     nuevo_espacio = espacio.model_dump()
 
     resultado = await coleccion_espacios.insert_one(nuevo_espacio)
 
-    espacio_guardado = await coleccion_espacios.find_one({"_id": resultado.inserted_id})
+    espacio_guardado = await coleccion_espacios.find_one(
+        {"_id": resultado.inserted_id}
+    )
 
     if not espacio_guardado:
         raise HTTPException(
@@ -46,8 +55,14 @@ async def crear_espacio(espacio: EspacioCreate):
     return convertir_espacio(espacio_guardado)
 
 
-@router.get("/", response_model=List[EspacioResponse])
-async def listar_espacios():
+@router.get(
+    "/",
+    response_model=List[EspacioResponse],
+    summary="Listar espacios académicos",
+)
+async def listar_espacios(
+    usuario_actual: dict = Depends(requerir_roles("Estudiante", "Docente", "Admin")),
+):
     espacios = []
     cursor = coleccion_espacios.find()
 
@@ -63,14 +78,8 @@ async def listar_espacios():
     summary="Consultar estado actual de espacios",
 )
 async def obtener_estado_actual(
-    usuario_actual: dict = Depends(requerir_roles("Estudiante", "Docente", "Admin"))
+    usuario_actual: dict = Depends(requerir_roles("Estudiante", "Docente", "Admin")),
 ):
-    """
-    Retorna la lista de espacios con su estado actual.
-
-    Esta ruta alimenta el mapa interactivo del estudiante y permite visualizar
-    disponibilidad general sin modificar datos.
-    """
     espacios = []
     cursor = coleccion_espacios.find()
 
@@ -89,11 +98,6 @@ async def liberar_espacio(
     espacio_id: str,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
 ):
-    """
-    Permite que un Docente o Admin marque un aula como disponible.
-
-    Esta acción se usa cuando el docente termina la clase antes de tiempo.
-    """
     espacio_object_id = obtener_object_id(espacio_id)
 
     espacio_existe = await coleccion_espacios.find_one({"_id": espacio_object_id})
@@ -109,7 +113,9 @@ async def liberar_espacio(
         {"$set": {"estado_actual": "disponible"}},
     )
 
-    espacio_actualizado = await coleccion_espacios.find_one({"_id": espacio_object_id})
+    espacio_actualizado = await coleccion_espacios.find_one(
+        {"_id": espacio_object_id}
+    )
 
     if not espacio_actualizado:
         raise HTTPException(
@@ -129,9 +135,6 @@ async def obtener_detalle_espacio(
     espacio_id: str,
     usuario_actual: dict = Depends(requerir_roles("Estudiante", "Docente", "Admin")),
 ):
-    """
-    Retorna la ficha técnica de un aula o laboratorio específico.
-    """
     espacio_object_id = obtener_object_id(espacio_id)
 
     espacio = await coleccion_espacios.find_one({"_id": espacio_object_id})
