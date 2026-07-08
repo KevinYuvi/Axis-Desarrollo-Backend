@@ -3,9 +3,6 @@ from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
-from app.incidencias.router import router as incidencias_router
-from app.tickets.router import router as tickets_router
-from app.aulas.router import router as aulas_router
 
 
 app = FastAPI(
@@ -18,9 +15,7 @@ app.include_router(espacios_router)
 app.include_router(reservas_router)
 app.include_router(reportes_router)
 app.include_router(usuarios_router)
-app.include_router(incidencias_router)
-app.include_router(tickets_router)
-app.include_router(aulas_router)
+
 
 
 @app.get("/", tags=["Root"])
