@@ -6,6 +6,8 @@ from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
 from app.ocupacion.router import router as ocupacion_router
 
+API_PREFIX = "/api/v1"
+
 app = FastAPI(
     title="AXIS API - Sistema de Gestión Universitaria",
     description="Backend desarrollado bajo una arquitectura de Monolito Modular para controlar espacios, reservas e incidencias.",
@@ -30,8 +32,8 @@ def read_root():
         "message": "Bienvenido a la API de AXIS Backend",
     }
 
-app.include_router(espacios_router)
-app.include_router(reservas_router)
-app.include_router(reportes_router)
-app.include_router(usuarios_router)
-app.include_router(ocupacion_router)
+
+app.include_router(espacios_router, prefix=API_PREFIX)
+app.include_router(reservas_router, prefix=API_PREFIX)
+app.include_router(reportes_router, prefix=API_PREFIX)
+app.include_router(usuarios_router, prefix=API_PREFIX)
