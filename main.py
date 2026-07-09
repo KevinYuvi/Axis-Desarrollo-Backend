@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
+from app.ocupacion.router import router as ocupacion_router
 
 API_PREFIX = "/api/v1"
 
@@ -15,7 +15,8 @@ app = FastAPI(
     docs_url="/docs",
 )
 
-# CORS para permitir conexión desde React Native / Expo durante desarrollo
+# Habilitado para desarrollo: permite que Expo (celular físico, emulador o
+# expo start --web) consuma la API desde cualquier origen local.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,7 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/", tags=["Root"])
 def read_root():
@@ -37,3 +37,6 @@ app.include_router(espacios_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(reportes_router, prefix=API_PREFIX)
 app.include_router(usuarios_router, prefix=API_PREFIX)
+# El router de ocupación ya define su propio prefijo completo "/api/occupancy"
+# (ver app/ocupacion/router.py), por eso NO lleva prefix=API_PREFIX aquí.
+app.include_router(ocupacion_router)
