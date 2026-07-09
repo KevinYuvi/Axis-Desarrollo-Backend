@@ -18,6 +18,15 @@ class EspacioBase(BaseModel):
 class EspacioCreate(EspacioBase):
     pass
 
+class EspacioUpdate(BaseModel):
+    """Actualización parcial de un espacio (solo Gestor)."""
+    nombre: Optional[str] = Field(default=None, min_length=3, max_length=100)
+    capacidad: Optional[int] = Field(default=None, gt=0)
+    equipamiento: Optional[List[str]] = None
+    estado_actual: Optional[Literal["disponible", "ocupado", "mantenimiento"]] = None
+    coordenadas_gps: Optional[str] = None
+    svg_id: Optional[str] = None
+
 class EspacioResponse(EspacioBase):
     id: str = Field(..., example="649c12a3f1234567890abcdef")
 
