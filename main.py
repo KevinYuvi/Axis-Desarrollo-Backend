@@ -5,6 +5,7 @@ from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
 from app.ocupacion.router import router as ocupacion_router
+from app.ia.router import router as ia_router
 
 API_PREFIX = "/api/v1"
 
@@ -37,6 +38,6 @@ app.include_router(espacios_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(reportes_router, prefix=API_PREFIX)
 app.include_router(usuarios_router, prefix=API_PREFIX)
-# El router de ocupación ya define su propio prefijo completo "/api/occupancy"
-# (ver app/ocupacion/router.py), por eso NO lleva prefix=API_PREFIX aquí.
+app.include_router(ia_router, prefix=API_PREFIX)
+# El router de ocupación define su propio prefijo (se estandariza a /api/v1 más adelante)
 app.include_router(ocupacion_router)
