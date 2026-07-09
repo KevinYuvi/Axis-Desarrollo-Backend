@@ -12,10 +12,15 @@ from bson.errors import InvalidId
 from openai import AsyncOpenAI
 
 from app.database import db
-from app.usuarios.utils import obtener_usuario_actual
+from app.usuarios.utils import obtener_usuario_actual, normalizar_rol
 
 
 router = APIRouter(prefix="/ia", tags=["IA & Procesamiento"])
+
+# Roles (canónicos) con permiso para ejecutar acciones desde el chat IA
+# (reportes, reservas, liberación de aulas). Los alias como "profesor"
+# se resuelven con normalizar_rol antes de comparar.
+ROLES_CON_ACCIONES = {"docente", "admin", "ayudante"}
 
 coleccion_reservas = db["reservas"]
 coleccion_espacios = db["espacios"]
@@ -1452,7 +1457,7 @@ async def resolver_reporte_directo(
             ),
         }
 
-    if rol_usuario not in ["docente", "profesor", "admin", "ayudante"]:
+    if normalizar_rol(rol_usuario) not in ROLES_CON_ACCIONES:
         return {
             "status": "error",
             "accion": "REPORTE",
@@ -1556,7 +1561,7 @@ async def resolver_reporte_con_ia(
             ),
         }
 
-    if rol_usuario not in ["docente", "profesor", "admin", "ayudante"]:
+    if normalizar_rol(rol_usuario) not in ROLES_CON_ACCIONES:
         return {
             "status": "error",
             "accion": "REPORTE",
@@ -1698,7 +1703,7 @@ async def resolver_liberacion_aula(
     if not detectar_solicitud_liberacion_aula(texto_final):
         return None
 
-    if rol_usuario not in ["docente", "profesor", "admin", "ayudante"]:
+    if normalizar_rol(rol_usuario) not in ROLES_CON_ACCIONES:
         return {
             "status": "error",
             "accion": "LIBERAR_AULA",
@@ -1743,7 +1748,7 @@ async def resolver_liberacion_aula(
 
         # Si es docente, solo puede liberar su propia reserva.
         # Si es admin o ayudante, puede liberar cualquier reserva activa.
-        if rol_usuario in ["docente", "profesor"]:
+        if normalizar_rol(rol_usuario) == "docente":
             filtro_reserva["usuario_id"] = usuario_id
 
         reserva_activa = await coleccion_reservas.find_one(filtro_reserva)
@@ -1839,7 +1844,7 @@ async def resolver_solicitud_reserva(
     if not detectar_solicitud_reserva(texto_final):
         return None
 
-    if rol_usuario not in ["docente", "profesor", "admin", "ayudante"]:
+    if normalizar_rol(rol_usuario) not in ROLES_CON_ACCIONES:
         return {
             "status": "error",
             "accion": "RESERVA",

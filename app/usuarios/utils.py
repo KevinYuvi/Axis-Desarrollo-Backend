@@ -39,8 +39,10 @@ def _decodificar_clerk(token: str) -> dict:
     """Valida un token de Clerk (RS256) y normaliza los datos del usuario."""
     payload = jwt.decode(token, CLERK_PEM_PUBLIC_KEY, algorithms=["RS256"])
     user_id = payload.get("sub")
-    metadata = payload.get("metadata", {})
-    rol = metadata.get("rol", "estudiante")
+    # Según el JWT template de Clerk, el rol puede venir en "metadata"
+    # o directamente en "public_metadata" — se aceptan ambos claims.
+    metadata = payload.get("metadata") or payload.get("public_metadata") or {}
+    rol = normalizar_rol(metadata.get("rol"))
     if user_id is None:
         raise jwt.PyJWTError("token de Clerk sin 'sub'")
     return {"user_id": user_id, "rol": rol}
@@ -81,15 +83,26 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
         raise credenciales_exception
 
 
+# Strings canónicas de rol (minúsculas) y alias históricos aceptados.
+ROLES_CANONICOS = {"estudiante", "docente", "ayudante", "admin"}
+ALIAS_ROLES = {"profesor": "docente", "gestor": "admin", "gestor de piso": "admin"}
+
+
+def normalizar_rol(raw) -> str:
+    """Convierte cualquier variante histórica de rol a su string canónica."""
+    rol = str(raw or "estudiante").strip().lower()
+    rol = ALIAS_ROLES.get(rol, rol)
+    return rol if rol in ROLES_CANONICOS else "estudiante"
+
+
 def requerir_roles(*roles_permitidos: str):
     """Crea una dependencia para permitir acceso únicamente a ciertos roles."""
-    async def validador_rol(usuario_actual: dict = Depends(obtener_usuario_actual)) -> dict:
-        rol_usuario = usuario_actual.get("rol")
+    # Se normalizan ambos lados: el JWT legacy usa "Docente" (RoleEnum),
+    # Clerk publicMetadata usa "docente" y hay alias como "profesor"/"gestor".
+    permitidos = {normalizar_rol(r) for r in roles_permitidos}
 
-        # Comparación sin distinguir mayúsculas: el JWT legacy usa "Docente"
-        # (RoleEnum) y Clerk publicMetadata usa "docente" — ambos deben pasar.
-        roles_normalizados = {r.lower() for r in roles_permitidos}
-        if (rol_usuario or "").lower() not in roles_normalizados:
+    async def validador_rol(usuario_actual: dict = Depends(obtener_usuario_actual)) -> dict:
+        if normalizar_rol(usuario_actual.get("rol")) not in permitidos:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Acceso no autorizado. Roles permitidos: {', '.join(roles_permitidos)}",
