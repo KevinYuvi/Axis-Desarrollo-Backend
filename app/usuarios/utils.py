@@ -10,7 +10,7 @@ CLERK_PEM_PUBLIC_KEY = os.getenv("CLERK_PEM_PUBLIC_KEY", "").replace("\\n", "\n"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="")
 
 async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
-    """Intercepta el token JWT de Clerk, lo valida y extrae el rol[cite: 314]."""
+    """Intercepta el token JWT de Clerk, lo valida y extrae el rol."""
     credenciales_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales de Clerk",
@@ -21,15 +21,22 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
         print("ADVERTENCIA: Falta CLERK_PEM_PUBLIC_KEY en .env")
         
     try:
-        # Decodificamos el JWT de Clerk [cite: 316]
-        payload = jwt.decode(token, CLERK_PEM_PUBLIC_KEY, algorithms=["RS256"])
+        # 🔴 LA SOLUCIÓN: Agregamos leeway=60 
+        # Esto le da 60 segundos de "perdón" a la diferencia de relojes 
+        # entre los servidores de Clerk, tu celular y tu computadora.
+        payload = jwt.decode(
+            token, 
+            CLERK_PEM_PUBLIC_KEY, 
+            algorithms=["RS256"],
+            leeway=60
+        )
         
-        # Clerk guarda el ID de usuario en 'sub' [cite: 316]
+        # Clerk guarda el ID de usuario en 'sub'
         user_id: str = payload.get("sub")
         
-        # Extraemos los metadatos públicos (donde guardaremos el rol "admin" o "docente") [cite: 316]
+        # Extraemos los metadatos públicos (donde guardaremos el rol "admin" o "docente")
         metadata = payload.get("public_metadata", payload.get("metadata", {}))
-        rol: str = metadata.get("rol", "estudiante").lower() # Por defecto estudiante [cite: 316]
+        rol: str = metadata.get("rol", "estudiante").lower() # Por defecto estudiante
         
         if user_id is None:
             raise credenciales_exception
@@ -42,7 +49,7 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
         raise credenciales_exception
 
 def requerir_roles(*roles_permitidos: str):
-    """Dependencia para bloquear o permitir acciones según el rol[cite: 582, 583]."""
+    """Dependencia para bloquear o permitir acciones según el rol."""
     async def validador_rol(usuario_actual: dict = Depends(obtener_usuario_actual)) -> dict:
         rol_usuario = usuario_actual.get("rol", "estudiante").lower()
         roles_permitidos_lower = [r.lower() for r in roles_permitidos]
