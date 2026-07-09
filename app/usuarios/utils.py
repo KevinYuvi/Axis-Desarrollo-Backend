@@ -86,7 +86,10 @@ def requerir_roles(*roles_permitidos: str):
     async def validador_rol(usuario_actual: dict = Depends(obtener_usuario_actual)) -> dict:
         rol_usuario = usuario_actual.get("rol")
 
-        if rol_usuario not in roles_permitidos:
+        # Comparación sin distinguir mayúsculas: el JWT legacy usa "Docente"
+        # (RoleEnum) y Clerk publicMetadata usa "docente" — ambos deben pasar.
+        roles_normalizados = {r.lower() for r in roles_permitidos}
+        if (rol_usuario or "").lower() not in roles_normalizados:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Acceso no autorizado. Roles permitidos: {', '.join(roles_permitidos)}",
