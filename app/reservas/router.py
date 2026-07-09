@@ -37,6 +37,9 @@ def obtener_object_id(id_valor: str) -> ObjectId:
 def convertir_reserva(documento: dict) -> dict:
     documento["id"] = str(documento["_id"])
     documento.pop("_id", None)
+    # Reservas antiguas no tienen campos de check-in: se completan con valores por defecto
+    documento.setdefault("checkin", False)
+    documento.setdefault("checkin_hora", None)
     return documento
 
 
@@ -223,6 +226,42 @@ async def crear_reserva(
         )
 
     return convertir_reserva(reserva_guardada)
+
+
+@router.patch(
+    "/{reserva_id}/checkin",
+    summary="Check-in de clase (Ayudante/Docente)",
+)
+async def checkin_reserva(
+    reserva_id: str,
+    usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
+):
+    """
+    Confirma que el grupo está presente en el aula para que la reserva
+    no se libere por inasistencia (Planteamiento §C).
+    """
+    reserva_object_id = obtener_object_id(reserva_id)
+
+    ahora = obtener_hora_ecuador()
+
+    resultado = await coleccion_reservas.update_one(
+        {"_id": reserva_object_id},
+        {
+            "$set": {
+                "checkin": True,
+                "checkin_hora": ahora,
+                "checkin_por": obtener_usuario_id(usuario_actual),
+            }
+        },
+    )
+
+    if resultado.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada",
+        )
+
+    return {"mensaje": "Check-in registrado", "reserva_id": reserva_id}
 
 
 @router.get(

@@ -26,6 +26,9 @@ class ReservaResponse(ReservaBase):
     usuario_id: str = Field(..., example="649b99a3f1234567890abcde", description="ID del docente en el sistema")
     # Opcional: Si quieres seguir devolviendo el nombre plano del docente para simplificar el Front, lo dejas como opcional
     docente_nombre: Optional[str] = Field(None, example="Ing. Juan Pérez")
+    # Check-in de clase (Ayudante/Docente): confirma asistencia para que el aula no se libere
+    checkin: bool = Field(default=False, description="Indica si ya se registró el check-in de la clase")
+    checkin_hora: Optional[datetime] = Field(None, example="2026-07-07T08:05:00", description="Hora (Ecuador) en que se registró el check-in")
 
     class Config:
         from_attributes = True
