@@ -4,19 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
-from app.usuarios.router import router as usuarios_router
 from app.ia.router import router as ia_router
 
 API_PREFIX = "/api/v1"
 
 app = FastAPI(
-    title="AXIS API - Sistema de Gestión Universitaria",
-    description="Backend desarrollado bajo una arquitectura de Monolito Modular para controlar espacios, reservas e incidencias.",
+    title="AXIS API - Super Backend Integrado con Clerk",
+    description="Backend Monolito Modular con IA, Reservas y Auth delegada a Clerk.",
     version="1.0.0",
-    docs_url="/docs",
 )
 
-# CORS para permitir conexión desde React Native / Expo durante desarrollo
+# CORS para que el frontend pueda conectarse [cite: 588]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,17 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/", tags=["Root"])
 def read_root():
     return {
         "status": "online",
-        "message": "Bienvenido a la API de AXIS Backend",
+        "message": "Super Backend AXIS con Clerk operando",
     }
 
-
+# 🔴 Rutas de Negocio habilitadas[cite: 588]. 
+# (La de 'usuarios' ha sido eliminada por completo)
 app.include_router(espacios_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(reportes_router, prefix=API_PREFIX)
-app.include_router(usuarios_router, prefix=API_PREFIX)
 app.include_router(ia_router, prefix=API_PREFIX)
