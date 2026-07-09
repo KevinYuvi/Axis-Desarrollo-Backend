@@ -9,7 +9,7 @@ from app.space_registry import SPACE_REGISTRY
 logger = logging.getLogger("axis.vision.scheduler")
 
 # Cada cuánto se vuelve a analizar todos los espacios del registro.
-ANALYSIS_INTERVAL_SECONDS = 30
+ANALYSIS_INTERVAL_SECONDS = 10
 
 
 def _capture_and_store_annotated_frame(space_config: dict) -> None:
