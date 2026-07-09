@@ -79,3 +79,19 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
         return _decodificar_legacy(token)
     except jwt.PyJWTError:
         raise credenciales_exception
+
+
+def requerir_roles(*roles_permitidos: str):
+    """Crea una dependencia para permitir acceso únicamente a ciertos roles."""
+    async def validador_rol(usuario_actual: dict = Depends(obtener_usuario_actual)) -> dict:
+        rol_usuario = usuario_actual.get("rol")
+
+        if rol_usuario not in roles_permitidos:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acceso no autorizado. Roles permitidos: {', '.join(roles_permitidos)}",
+            )
+
+        return usuario_actual
+
+    return validador_rol
