@@ -1,3 +1,9 @@
+# Cargar .env ANTES de importar los routers: database.py y usuarios/utils.py
+# leen sus variables (MONGO_URI, CLERK_PEM_PUBLIC_KEY) al momento del import.
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.espacios.router import router as espacios_router
