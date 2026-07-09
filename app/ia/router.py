@@ -1412,6 +1412,7 @@ async def crear_reporte(
         "espacio_nombre": nombre_aula_final,
         "descripcion": descripcion_limpia,
         "gravedad": gravedad,
+        "recurso_afectado": "General",
         "fecha_reporte": obtener_hora_ecuador(),
         "estado": "abierto",
         "usuario_id": usuario_id,
@@ -1419,6 +1420,10 @@ async def crear_reporte(
         "origen": "ia_audio" if file else "ia_texto",
         "texto_original": texto_final,
     }
+
+    # Código secuencial de ticket (mismo formato TK-xxx que app/reportes/router.py)
+    total = await coleccion_reportes.count_documents({})
+    nuevo_reporte["codigo"] = f"TK-{total + 1:03d}"
 
     resultado = await coleccion_reportes.insert_one(nuevo_reporte)
 
