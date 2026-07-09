@@ -23,5 +23,5 @@ FALLBACK_OCCUPANCY_RATIO = float(os.getenv("VISION_FALLBACK_OCCUPANCY_RATIO", "0
 # (Fase 4). Reemplazar por la IP real del celular-cámara antes de probar; ver
 # docs/.plans/260708-1317-camera-tracking-realtime/ para el paso a paso.
 IP_CAMERA_SNAPSHOT_URL = os.getenv(
-    "IP_CAMERA_SNAPSHOT_URL", "http://10.138.168.112:8080/shot.jpg"
+    "IP_CAMERA_SNAPSHOT_URL", "http://192.168.18.3:8080/shot.jpg"
 )
