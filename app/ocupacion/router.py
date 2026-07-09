@@ -8,7 +8,7 @@ from app.ocupacion.schemas import (
     OcupacionRecomendacionResponse,
 )
 
-router = APIRouter(prefix="/api/occupancy", tags=["Ocupación"])
+router = APIRouter(prefix="/ocupacion", tags=["Ocupación"])
 
 
 @router.get("/spaces", response_model=OcupacionListResponse)
