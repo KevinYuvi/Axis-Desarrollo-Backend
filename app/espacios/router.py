@@ -69,6 +69,30 @@ async def listar_espacios(
     async for documento in cursor:
         espacios.append(convertir_espacio(documento))
 
+    # Inyectar espacios de prueba
+    mock_espacios = [
+        {
+            "_id": ObjectId("649c12a3f1234567890abcde"),
+            "nombre": "Aula FICA 101",
+            "tipo": "Aula",
+            "capacidad": 40,
+            "estado_actual": "disponible",
+            "coordenadas_gps": "-0.1995,-78.5042"
+        },
+        {
+            "_id": ObjectId("649c12a3f1234567890abcd0"),
+            "nombre": "Aula FICA 102",
+            "tipo": "Aula",
+            "capacidad": 35,
+            "estado_actual": "disponible",
+            "coordenadas_gps": "-0.2012,-78.5001"
+        }
+    ]
+    ids_existentes = {e["id"] for e in espacios}
+    for me in mock_espacios:
+        if str(me["_id"]) not in ids_existentes:
+            espacios.append(convertir_espacio(me))
+
     return espacios
 
 

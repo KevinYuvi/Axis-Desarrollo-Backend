@@ -102,6 +102,7 @@ def obtener_usuario_id(usuario_actual: dict) -> str:
         usuario_actual.get("_id")
         or usuario_actual.get("id")
         or usuario_actual.get("sub")
+        or usuario_actual.get("user_id")
     )
 
     if not usuario_id:

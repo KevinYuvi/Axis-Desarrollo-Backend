@@ -20,6 +20,8 @@ RAW_SPACES = [
         "studyRoomsAvailable": 2,
         "distanceMinutes": 5,
         "occupancyPercent": 45,
+        "latitude": -0.1995,
+        "longitude": -78.5042,
     },
     {
         "id": "biblioteca-general",
@@ -37,6 +39,8 @@ RAW_SPACES = [
         "studyRoomsAvailable": 1,
         "distanceMinutes": 9,
         "occupancyPercent": 82,
+        "latitude": -0.2012,
+        "longitude": -78.5001,
     },
     {
         "id": "sala-grupal-2",
@@ -54,6 +58,8 @@ RAW_SPACES = [
         "studyRoomsAvailable": 1,
         "distanceMinutes": 3,
         "occupancyPercent": 25,
+        "latitude": -0.1989,
+        "longitude": -78.5030,
     },
     {
         "id": "laboratorio-computadoras",
@@ -71,6 +77,8 @@ RAW_SPACES = [
         "studyRoomsAvailable": 0,
         "distanceMinutes": 7,
         "occupancyPercent": 97,
+        "latitude": -0.2010,
+        "longitude": -78.5015,
     },
     {
         "id": "sala-lectura-humanidades",
@@ -88,6 +96,8 @@ RAW_SPACES = [
         "studyRoomsAvailable": 0,
         "distanceMinutes": 12,
         "occupancyPercent": None,
+        "latitude": -0.2005,
+        "longitude": -78.5025,
     },
 ]
 
