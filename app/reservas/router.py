@@ -225,6 +225,84 @@ async def liberar_clase_actual(
         else None,
     }
 
+@router.patch(
+    "/{reserva_id}/liberar",
+    response_model=dict,
+    summary="Liberar una reserva futura o activa por ID",
+)
+async def liberar_reserva_por_id(
+    reserva_id: str,
+    usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
+):
+    usuario_id = obtener_usuario_id(usuario_actual)
+    ahora = obtener_hora_ecuador()
+
+    reserva_object_id = obtener_object_id(reserva_id)
+
+    reserva = await coleccion_reservas.find_one(
+        {
+            "_id": reserva_object_id,
+            "usuario_id": usuario_id,
+        }
+    )
+
+    if not reserva:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró la reserva o no pertenece al usuario actual.",
+        )
+
+    hora_fin = reserva.get("hora_fin")
+
+    if hora_fin and hora_fin < ahora:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puedes liberar una reserva que ya finalizó.",
+        )
+
+    espacio_id = reserva.get("espacio_id")
+
+    await coleccion_reservas.update_one(
+        {"_id": reserva["_id"]},
+        {
+            "$set": {
+                "hora_fin": ahora,
+                "liberada_anticipadamente": True,
+                "liberada_en": ahora,
+            }
+        },
+    )
+
+    espacio_actualizado = None
+
+    if espacio_id:
+        try:
+            espacio_object_id = obtener_object_id(espacio_id)
+
+            await coleccion_espacios.update_one(
+                {"_id": espacio_object_id},
+                {"$set": {"estado_actual": "disponible"}},
+            )
+
+            espacio_actualizado = await coleccion_espacios.find_one(
+                {"_id": espacio_object_id}
+            )
+        except HTTPException:
+            espacio_actualizado = None
+
+    reserva_actualizada = await coleccion_reservas.find_one(
+        {"_id": reserva["_id"]}
+    )
+
+    return {
+        "message": "Reserva liberada correctamente.",
+        "reserva": convertir_reserva(reserva_actualizada),
+        "espacio": convertir_espacio(espacio_actualizado)
+        if espacio_actualizado
+        else None,
+    }
+
+
 @router.post(
     "/",
     response_model=ReservaResponse,
