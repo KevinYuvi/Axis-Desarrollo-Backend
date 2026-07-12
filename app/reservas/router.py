@@ -7,7 +7,7 @@ from bson.errors import InvalidId
 
 from app.reservas.schemas import ReservaCreate, ReservaResponse, MiClaseActualResponse
 from app.database import db
-from app.usuarios.utils import obtener_usuario_actual, requerir_roles
+from app.usuarios.utils import requerir_roles
 
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
@@ -30,7 +30,7 @@ def obtener_object_id(id_valor: str) -> ObjectId:
     except InvalidId:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El id del espacio enviado no tiene un formato válido de MongoDB",
+            detail="El id enviado no tiene un formato válido de MongoDB",
         )
 
 
@@ -62,6 +62,17 @@ def obtener_usuario_id(usuario_actual: dict) -> str:
     return str(usuario_id)
 
 
+def filtro_reservas_vigentes() -> dict:
+    return {
+        "estado": {
+            "$nin": ["liberada", "cancelada"]
+        },
+        "liberada_anticipadamente": {
+            "$ne": True
+        },
+    }
+
+
 @router.get(
     "/mi-clase-actual",
     response_model=MiClaseActualResponse,
@@ -71,21 +82,16 @@ async def obtener_mi_clase_actual(
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
 ):
     usuario_id = obtener_usuario_id(usuario_actual)
-
     ahora = obtener_hora_ecuador()
-
-    print("DOCENTE AUTENTICADO:", usuario_id)
-    print("HORA ACTUAL ECUADOR:", ahora)
 
     reserva = await coleccion_reservas.find_one(
         {
             "usuario_id": usuario_id,
             "hora_inicio": {"$lte": ahora},
             "hora_fin": {"$gte": ahora},
+            **filtro_reservas_vigentes(),
         }
     )
-
-    print("RESERVA ACTIVA ENCONTRADA:", reserva)
 
     if not reserva:
         return {
@@ -94,7 +100,6 @@ async def obtener_mi_clase_actual(
         }
 
     espacio_object_id = obtener_object_id(reserva["espacio_id"])
-
     espacio = await coleccion_espacios.find_one({"_id": espacio_object_id})
 
     if not espacio:
@@ -118,21 +123,17 @@ async def obtener_mis_clases_hoy(
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
 ):
     usuario_id = obtener_usuario_id(usuario_actual)
-
     ahora = obtener_hora_ecuador()
 
     inicio_dia = datetime.combine(ahora.date(), time.min)
     fin_dia = datetime.combine(ahora.date(), time.max)
-
-    print("DOCENTE AUTENTICADO:", usuario_id)
-    print("INICIO DÍA ECUADOR:", inicio_dia)
-    print("FIN DÍA ECUADOR:", fin_dia)
 
     cursor = coleccion_reservas.find(
         {
             "usuario_id": usuario_id,
             "hora_inicio": {"$lt": fin_dia},
             "hora_fin": {"$gt": inicio_dia},
+            **filtro_reservas_vigentes(),
         }
     ).sort("hora_inicio", 1)
 
@@ -174,6 +175,7 @@ async def liberar_clase_actual(
             "usuario_id": usuario_id,
             "hora_inicio": {"$lte": ahora},
             "hora_fin": {"$gte": ahora},
+            **filtro_reservas_vigentes(),
         }
     )
 
@@ -189,9 +191,11 @@ async def liberar_clase_actual(
         {"_id": reserva["_id"]},
         {
             "$set": {
+                "estado": "liberada",
                 "hora_fin": ahora,
                 "liberada_anticipadamente": True,
                 "liberada_en": ahora,
+                "actualizado_en": ahora,
             }
         },
     )
@@ -225,6 +229,7 @@ async def liberar_clase_actual(
         else None,
     }
 
+
 @router.patch(
     "/{reserva_id}/liberar",
     response_model=dict,
@@ -243,13 +248,14 @@ async def liberar_reserva_por_id(
         {
             "_id": reserva_object_id,
             "usuario_id": usuario_id,
+            **filtro_reservas_vigentes(),
         }
     )
 
     if not reserva:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontró la reserva o no pertenece al usuario actual.",
+            detail="No se encontró la reserva vigente o no pertenece al usuario actual.",
         )
 
     hora_fin = reserva.get("hora_fin")
@@ -266,9 +272,11 @@ async def liberar_reserva_por_id(
         {"_id": reserva["_id"]},
         {
             "$set": {
+                "estado": "liberada",
                 "hora_fin": ahora,
                 "liberada_anticipadamente": True,
                 "liberada_en": ahora,
+                "actualizado_en": ahora,
             }
         },
     )
@@ -340,6 +348,7 @@ async def crear_reserva(
             "espacio_id": reserva.espacio_id,
             "hora_inicio": {"$lt": reserva.hora_fin},
             "hora_fin": {"$gt": reserva.hora_inicio},
+            **filtro_reservas_vigentes(),
         }
     )
 
@@ -350,10 +359,15 @@ async def crear_reserva(
         )
 
     usuario_id = obtener_usuario_id(usuario_actual)
+    ahora = obtener_hora_ecuador()
 
     nueva_reserva = reserva.model_dump()
     nueva_reserva["usuario_id"] = usuario_id
     nueva_reserva["docente_nombre"] = usuario_actual.get("nombre", "Docente AXIS")
+    nueva_reserva["estado"] = "reservada"
+    nueva_reserva["liberada_anticipadamente"] = False
+    nueva_reserva["creada_en"] = ahora
+    nueva_reserva["actualizado_en"] = ahora
 
     resultado = await coleccion_reservas.insert_one(nueva_reserva)
 
@@ -366,6 +380,16 @@ async def crear_reserva(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al guardar la reserva",
         )
+
+    await coleccion_espacios.update_one(
+        {"_id": id_espacio_objeto},
+        {
+            "$set": {
+                "estado_actual": "ocupado",
+                "actualizado_en": ahora,
+            }
+        },
+    )
 
     return convertir_reserva(reserva_guardada)
 
