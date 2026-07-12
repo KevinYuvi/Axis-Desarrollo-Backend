@@ -3,7 +3,7 @@ from typing import List
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from app.espacios.schemas import EspacioCreate, EspacioResponse, EspacioUpdate
+from app.espacios.schemas import EspacioCreate, EspacioResponse
 from app.database import db
 from app.usuarios.utils import requerir_roles
 
@@ -69,30 +69,6 @@ async def listar_espacios(
     async for documento in cursor:
         espacios.append(convertir_espacio(documento))
 
-    # Inyectar espacios de prueba
-    mock_espacios = [
-        {
-            "_id": ObjectId("649c12a3f1234567890abcde"),
-            "nombre": "Aula FICA 101",
-            "tipo": "Aula",
-            "capacidad": 40,
-            "estado_actual": "disponible",
-            "coordenadas_gps": "-0.1995,-78.5042"
-        },
-        {
-            "_id": ObjectId("649c12a3f1234567890abcd0"),
-            "nombre": "Aula FICA 102",
-            "tipo": "Aula",
-            "capacidad": 35,
-            "estado_actual": "disponible",
-            "coordenadas_gps": "-0.2012,-78.5001"
-        }
-    ]
-    ids_existentes = {e["id"] for e in espacios}
-    for me in mock_espacios:
-        if str(me["_id"]) not in ids_existentes:
-            espacios.append(convertir_espacio(me))
-
     return espacios
 
 
@@ -111,56 +87,6 @@ async def obtener_estado_actual(
         espacios.append(convertir_espacio(documento))
 
     return espacios
-
-
-@router.get(
-    "/sugerencias",
-    response_model=List[EspacioResponse],
-    summary="Sugerir aulas por capacidad (Docente)",
-)
-async def sugerir_espacios(
-    capacidad: int,
-    equipo: str | None = None,
-    usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
-):
-    """Aulas disponibles con capacidad suficiente; la más ajustada primero
-    (Planteamiento: el profesor solicita aula según cantidad de estudiantes)."""
-    filtro = {"estado_actual": "disponible", "capacidad": {"$gte": capacidad}}
-    if equipo:
-        filtro["equipamiento"] = {"$regex": equipo, "$options": "i"}
-
-    espacios = []
-    cursor = coleccion_espacios.find(filtro).sort("capacidad", 1)
-
-    async for documento in cursor:
-        espacios.append(convertir_espacio(documento))
-
-    return espacios
-
-
-@router.patch(
-    "/{espacio_id}/bloquear",
-    summary="Bloquear espacio (Gestor)",
-)
-async def bloquear_espacio(
-    espacio_id: str,
-    usuario_actual: dict = Depends(requerir_roles("Admin")),
-):
-    """Marca el espacio en mantenimiento (rojo en el mapa) hasta resolver el incidente."""
-    espacio_object_id = obtener_object_id(espacio_id)
-
-    resultado = await coleccion_espacios.update_one(
-        {"_id": espacio_object_id},
-        {"$set": {"estado_actual": "mantenimiento"}},
-    )
-
-    if resultado.matched_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Espacio no encontrado",
-        )
-
-    return {"mensaje": "Espacio bloqueado", "espacio_id": espacio_id}
 
 
 @router.patch(
@@ -198,40 +124,6 @@ async def liberar_espacio(
         )
 
     return convertir_espacio(espacio_actualizado)
-
-
-@router.patch(
-    "/{espacio_id}",
-    summary="Editar espacio (Gestor)",
-)
-async def editar_espacio(
-    espacio_id: str,
-    datos: EspacioUpdate,
-    usuario_actual: dict = Depends(requerir_roles("Admin")),
-):
-    """Actualización parcial de un espacio: solo los campos enviados en el body."""
-    espacio_object_id = obtener_object_id(espacio_id)
-
-    cambios = datos.model_dump(exclude_unset=True)
-
-    if not cambios:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Nada que actualizar",
-        )
-
-    resultado = await coleccion_espacios.update_one(
-        {"_id": espacio_object_id},
-        {"$set": cambios},
-    )
-
-    if resultado.matched_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Espacio no encontrado",
-        )
-
-    return {"mensaje": "Espacio actualizado", "cambios": cambios}
 
 
 @router.get(

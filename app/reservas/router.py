@@ -37,9 +37,6 @@ def obtener_object_id(id_valor: str) -> ObjectId:
 def convertir_reserva(documento: dict) -> dict:
     documento["id"] = str(documento["_id"])
     documento.pop("_id", None)
-    # Reservas antiguas no tienen campos de check-in: se completan con valores por defecto
-    documento.setdefault("checkin", False)
-    documento.setdefault("checkin_hora", None)
     return documento
 
 
@@ -54,7 +51,6 @@ def obtener_usuario_id(usuario_actual: dict) -> str:
         usuario_actual.get("_id")
         or usuario_actual.get("id")
         or usuario_actual.get("sub")
-        or usuario_actual.get("user_id")
     )
 
     if not usuario_id:
@@ -91,51 +87,15 @@ async def obtener_mi_clase_actual(
 
     print("RESERVA ACTIVA ENCONTRADA:", reserva)
 
-    if not reserva and usuario_id == "mock-docente-id":
-        reserva = {
-            "_id": ObjectId("649c55b9f1234567890fbcde"),
-            "espacio_id": "649c12a3f1234567890abcde",
-            "materia": "Programación Móvil (Clase Activa)",
-            "hora_inicio": ahora - timedelta(minutes=30),
-            "hora_fin": ahora + timedelta(minutes=90),
-            "usuario_id": "mock-docente-id",
-            "docente_nombre": "Profesor de Prueba",
-            "checkin": False,
-            "checkin_hora": None
-        }
-
     if not reserva:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontró una clase activa para el docente autenticado",
-        )
+        return {
+            "reserva": None,
+            "espacio": None,
+        }
 
-    espacio = None
-    espacio_id_str = str(reserva.get("espacio_id"))
-    if espacio_id_str == "649c12a3f1234567890abcde":
-        espacio = {
-            "_id": ObjectId("649c12a3f1234567890abcde"),
-            "nombre": "Aula FICA 101",
-            "tipo": "Aula",
-            "capacidad": 40,
-            "estado_actual": "disponible",
-            "coordenadas_gps": "-0.1995,-78.5042"
-        }
-    elif espacio_id_str == "649c12a3f1234567890abcd0":
-        espacio = {
-            "_id": ObjectId("649c12a3f1234567890abcd0"),
-            "nombre": "Aula FICA 102",
-            "tipo": "Aula",
-            "capacidad": 35,
-            "estado_actual": "disponible",
-            "coordenadas_gps": "-0.2012,-78.5001"
-        }
-    else:
-        try:
-            espacio_object_id = obtener_object_id(reserva["espacio_id"])
-            espacio = await coleccion_espacios.find_one({"_id": espacio_object_id})
-        except HTTPException:
-            pass
+    espacio_object_id = obtener_object_id(reserva["espacio_id"])
+
+    espacio = await coleccion_espacios.find_one({"_id": espacio_object_id})
 
     if not espacio:
         raise HTTPException(
@@ -179,73 +139,91 @@ async def obtener_mis_clases_hoy(
     cronograma_hoy = []
 
     async for reserva in cursor:
-        cronograma_hoy.append(reserva)
-    if usuario_id == "mock-docente-id":
-        mock_reservas = [
-            {
-                "_id": ObjectId("649c55b9f1234567890fbcde"),
-                "espacio_id": "649c12a3f1234567890abcde",
-                "materia": "Programación Móvil (Clase Activa)",
-                "hora_inicio": ahora - timedelta(minutes=30),
-                "hora_fin": ahora + timedelta(minutes=90),
-                "usuario_id": "mock-docente-id",
-                "docente_nombre": "Profesor de Prueba",
-                "checkin": False,
-                "checkin_hora": None
-            },
-            {
-                "_id": ObjectId("649c55b9f1234567890fbcdf"),
-                "espacio_id": "649c12a3f1234567890abcd0",
-                "materia": "Sistemas Operativos (Siguiente Clase)",
-                "hora_inicio": ahora + timedelta(hours=2),
-                "hora_fin": ahora + timedelta(hours=4),
-                "usuario_id": "mock-docente-id",
-                "docente_nombre": "Profesor de Prueba",
-                "checkin": False,
-                "checkin_hora": None
-            }
-        ]
-        ids_existentes = {str(r["_id"]) for r in cronograma_hoy}
-        for mr in mock_reservas:
-            if str(mr["_id"]) not in ids_existentes:
-                cronograma_hoy.append(mr)
-
-    respuesta = []
-    for r in cronograma_hoy:
         espacio = None
-        espacio_id_str = str(r.get("espacio_id"))
-        if espacio_id_str == "649c12a3f1234567890abcde":
-            espacio = {
-                "_id": ObjectId("649c12a3f1234567890abcde"),
-                "nombre": "Aula FICA 101",
-                "tipo": "Aula",
-                "capacidad": 40,
-                "estado_actual": "disponible",
-                "coordenadas_gps": "-0.1995,-78.5042"
-            }
-        elif espacio_id_str == "649c12a3f1234567890abcd0":
-            espacio = {
-                "_id": ObjectId("649c12a3f1234567890abcd0"),
-                "nombre": "Aula FICA 102",
-                "tipo": "Aula",
-                "capacidad": 35,
-                "estado_actual": "disponible",
-                "coordenadas_gps": "-0.2012,-78.5001"
-            }
-        else:
+
+        if reserva.get("espacio_id"):
             try:
-                espacio_object_id = obtener_object_id(r["espacio_id"])
+                espacio_object_id = obtener_object_id(reserva["espacio_id"])
                 espacio = await coleccion_espacios.find_one({"_id": espacio_object_id})
             except HTTPException:
-                pass
+                espacio = None
 
-        respuesta.append({
-            "reserva": convertir_reserva(r),
-            "espacio": convertir_espacio(espacio) if espacio else None,
-        })
+        cronograma_hoy.append(
+            {
+                "reserva": convertir_reserva(reserva),
+                "espacio": convertir_espacio(espacio) if espacio else None,
+            }
+        )
 
-    return respuesta
+    return cronograma_hoy
 
+
+@router.patch(
+    "/liberar-actual",
+    response_model=dict,
+    summary="Liberar la clase actual del docente",
+)
+async def liberar_clase_actual(
+    usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
+):
+    usuario_id = obtener_usuario_id(usuario_actual)
+    ahora = obtener_hora_ecuador()
+
+    reserva = await coleccion_reservas.find_one(
+        {
+            "usuario_id": usuario_id,
+            "hora_inicio": {"$lte": ahora},
+            "hora_fin": {"$gte": ahora},
+        }
+    )
+
+    if not reserva:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes una clase activa para liberar en este momento.",
+        )
+
+    espacio_id = reserva.get("espacio_id")
+
+    await coleccion_reservas.update_one(
+        {"_id": reserva["_id"]},
+        {
+            "$set": {
+                "hora_fin": ahora,
+                "liberada_anticipadamente": True,
+                "liberada_en": ahora,
+            }
+        },
+    )
+
+    espacio_actualizado = None
+
+    if espacio_id:
+        try:
+            espacio_object_id = obtener_object_id(espacio_id)
+
+            await coleccion_espacios.update_one(
+                {"_id": espacio_object_id},
+                {"$set": {"estado_actual": "disponible"}},
+            )
+
+            espacio_actualizado = await coleccion_espacios.find_one(
+                {"_id": espacio_object_id}
+            )
+        except HTTPException:
+            espacio_actualizado = None
+
+    reserva_actualizada = await coleccion_reservas.find_one(
+        {"_id": reserva["_id"]}
+    )
+
+    return {
+        "message": "Aula liberada correctamente.",
+        "reserva": convertir_reserva(reserva_actualizada),
+        "espacio": convertir_espacio(espacio_actualizado)
+        if espacio_actualizado
+        else None,
+    }
 
 @router.post(
     "/",
@@ -257,20 +235,15 @@ async def crear_reserva(
     reserva: ReservaCreate,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
 ):
-    espacio_existe = None
-    if reserva.espacio_id == "649c12a3f1234567890abcde":
-        espacio_existe = {"_id": ObjectId("649c12a3f1234567890abcde")}
-    elif reserva.espacio_id == "649c12a3f1234567890abcd0":
-        espacio_existe = {"_id": ObjectId("649c12a3f1234567890abcd0")}
-    else:
-        try:
-            id_espacio_objeto = ObjectId(reserva.espacio_id)
-            espacio_existe = await coleccion_espacios.find_one({"_id": id_espacio_objeto})
-        except InvalidId:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El id del espacio enviado no tiene un formato válido de MongoDB",
-            )
+    try:
+        id_espacio_objeto = ObjectId(reserva.espacio_id)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El id del espacio enviado no tiene un formato válido de MongoDB",
+        )
+
+    espacio_existe = await coleccion_espacios.find_one({"_id": id_espacio_objeto})
 
     if not espacio_existe:
         raise HTTPException(
@@ -317,42 +290,6 @@ async def crear_reserva(
         )
 
     return convertir_reserva(reserva_guardada)
-
-
-@router.patch(
-    "/{reserva_id}/checkin",
-    summary="Check-in de clase (Ayudante/Docente)",
-)
-async def checkin_reserva(
-    reserva_id: str,
-    usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
-):
-    """
-    Confirma que el grupo está presente en el aula para que la reserva
-    no se libere por inasistencia (Planteamiento §C).
-    """
-    reserva_object_id = obtener_object_id(reserva_id)
-
-    ahora = obtener_hora_ecuador()
-
-    resultado = await coleccion_reservas.update_one(
-        {"_id": reserva_object_id},
-        {
-            "$set": {
-                "checkin": True,
-                "checkin_hora": ahora,
-                "checkin_por": obtener_usuario_id(usuario_actual),
-            }
-        },
-    )
-
-    if resultado.matched_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reserva no encontrada",
-        )
-
-    return {"mensaje": "Check-in registrado", "reserva_id": reserva_id}
 
 
 @router.get(
