@@ -9,6 +9,7 @@ from app.reservas.schemas import ReservaCreate, ReservaResponse, MiClaseActualRe
 from app.database import db
 from app.usuarios.utils import requerir_roles
 
+from app.realtime.manager import realtime_manager
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
 
@@ -166,7 +167,7 @@ async def obtener_mis_clases_hoy(
 )
 async def liberar_clase_actual(
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
-):
+    ):
     usuario_id = obtener_usuario_id(usuario_actual)
     ahora = obtener_hora_ecuador()
 
@@ -221,6 +222,21 @@ async def liberar_clase_actual(
         {"_id": reserva["_id"]}
     )
 
+    await realtime_manager.emitir({
+        "tipo": "reservas_actualizadas",
+        "origen": "liberar_clase_actual",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "liberar_clase_actual",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "liberar_clase_actual",
+    })
+
     return {
         "message": "Aula liberada correctamente.",
         "reserva": convertir_reserva(reserva_actualizada),
@@ -238,7 +254,7 @@ async def liberar_clase_actual(
 async def liberar_reserva_por_id(
     reserva_id: str,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
-):
+    ):
     usuario_id = obtener_usuario_id(usuario_actual)
     ahora = obtener_hora_ecuador()
 
@@ -302,6 +318,21 @@ async def liberar_reserva_por_id(
         {"_id": reserva["_id"]}
     )
 
+    await realtime_manager.emitir({
+        "tipo": "reservas_actualizadas",
+        "origen": "liberar_reserva",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "liberar_reserva",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "liberar_reserva",
+    })
+
     return {
         "message": "Reserva liberada correctamente.",
         "reserva": convertir_reserva(reserva_actualizada),
@@ -320,7 +351,7 @@ async def liberar_reserva_por_id(
 async def crear_reserva(
     reserva: ReservaCreate,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
-):
+        ):
     try:
         id_espacio_objeto = ObjectId(reserva.espacio_id)
     except InvalidId:
@@ -390,6 +421,17 @@ async def crear_reserva(
             }
         },
     )
+
+    await realtime_manager.emitir({
+        "tipo": "reservas_actualizadas",
+        "origen": "crear_reserva",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "crear_reserva",
+    })
+    
 
     return convertir_reserva(reserva_guardada)
 

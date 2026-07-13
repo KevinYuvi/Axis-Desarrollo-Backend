@@ -9,6 +9,7 @@ from app.usuarios.utils import requerir_roles
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from app.realtime.manager import realtime_manager
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
@@ -66,7 +67,7 @@ def convertir_reporte(documento: dict) -> dict:
 async def crear_reporte(
     reporte: ReporteCreate,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
-):
+    ):
     espacio_object_id = obtener_object_id(reporte.espacio_id)
 
     espacio_existe = await coleccion_espacios.find_one(
@@ -110,6 +111,16 @@ async def crear_reporte(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al registrar el reporte",
         )
+
+    await realtime_manager.emitir({
+        "tipo": "reportes_actualizados",
+        "origen": "crear_reporte",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "crear_reporte",
+    })
 
     return convertir_reporte(reporte_guardado)
 
@@ -163,7 +174,7 @@ async def actualizar_estado_reporte(
     reporte_id: str,
     nuevo_estado: str,
     usuario_actual: dict = Depends(requerir_roles("Admin", "Ayudante")),
-):
+    ):
     estados_permitidos = ["abierto", "en_proceso", "resuelto"]
 
     if nuevo_estado not in estados_permitidos:
@@ -197,5 +208,15 @@ async def actualizar_estado_reporte(
     reporte_actualizado = await coleccion_reportes.find_one(
         {"_id": reporte_object_id}
     )
+
+    await realtime_manager.emitir({
+        "tipo": "reportes_actualizados",
+        "origen": "actualizar_estado_reporte",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "actualizar_estado_reporte",
+    })
 
     return convertir_reporte(reporte_actualizado)

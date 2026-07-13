@@ -9,6 +9,8 @@ from app.espacios.schemas import EspacioCreate, EspacioResponse
 from app.database import db
 from app.usuarios.utils import requerir_roles
 
+from app.realtime.manager import realtime_manager
+
 router = APIRouter(prefix="/espacios", tags=["Espacios"])
 
 coleccion_espacios = db["espacios"]
@@ -74,6 +76,16 @@ async def crear_espacio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al guardar el espacio en la base de datos",
         )
+    
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "crear_espacio",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "crear_espacio",
+    })
 
     return convertir_espacio(espacio_guardado)
 
@@ -149,7 +161,7 @@ async def actualizar_espacio(
     espacio_id: str,
     datos: dict,
     usuario_actual: dict = Depends(requerir_roles("Admin")),
-):
+    ):
     espacio_object_id = obtener_object_id(espacio_id)
 
     espacio_existe = await coleccion_espacios.find_one({"_id": espacio_object_id})
@@ -228,6 +240,16 @@ async def actualizar_espacio(
             detail="Error al actualizar el espacio",
         )
 
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "actualizar_espacio",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "actualizar_espacio",
+    })
+
     return convertir_espacio(espacio_actualizado)
 
 
@@ -240,7 +262,7 @@ async def cambiar_estado_espacio(
     espacio_id: str,
     nuevo_estado: str,
     usuario_actual: dict = Depends(requerir_roles("Admin")),
-):
+    ):
     if nuevo_estado not in ESTADOS_VALIDOS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -277,6 +299,16 @@ async def cambiar_estado_espacio(
             detail="Error al cambiar el estado del espacio",
         )
 
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "cambiar_estado_espacio",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "cambiar_estado_espacio",
+    })
+
     return convertir_espacio(espacio_actualizado)
 
 
@@ -288,7 +320,7 @@ async def cambiar_estado_espacio(
 async def liberar_espacio(
     espacio_id: str,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
-):
+    ):
     espacio_object_id = obtener_object_id(espacio_id)
 
     espacio_existe = await coleccion_espacios.find_one({"_id": espacio_object_id})
@@ -318,5 +350,20 @@ async def liberar_espacio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al liberar el espacio",
         )
+
+    await realtime_manager.emitir({
+        "tipo": "aulas_actualizadas",
+        "origen": "liberar_espacio",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "reservas_actualizadas",
+        "origen": "liberar_espacio",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "liberar_espacio",
+    })
 
     return convertir_espacio(espacio_actualizado)

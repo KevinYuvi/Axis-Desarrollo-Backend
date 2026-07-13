@@ -12,6 +12,7 @@ from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
 from app.ocupacion.router import router as ocupacion_router
 from app.ia.router import router as ia_router
+from app.realtime.router import router as realtime_router
 
 API_PREFIX = "/api/v1"
 
@@ -46,3 +47,4 @@ app.include_router(reportes_router, prefix=API_PREFIX)
 app.include_router(usuarios_router, prefix=API_PREFIX)
 app.include_router(ia_router, prefix=API_PREFIX)
 app.include_router(ocupacion_router, prefix=API_PREFIX)
+app.include_router(realtime_router, prefix=API_PREFIX)
