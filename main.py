@@ -1,10 +1,17 @@
+# Cargar .env ANTES de importar los routers: database.py y usuarios/utils.py
+# leen sus variables (MONGO_URI, CLERK_PEM_PUBLIC_KEY) al momento del import.
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.espacios.router import router as espacios_router
 from app.reservas.router import router as reservas_router
 from app.reportes.router import router as reportes_router
 from app.usuarios.router import router as usuarios_router
+from app.ocupacion.router import router as ocupacion_router
+from app.ia.router import router as ia_router
 
 API_PREFIX = "/api/v1"
 
@@ -15,7 +22,8 @@ app = FastAPI(
     docs_url="/docs",
 )
 
-# CORS para permitir conexión desde React Native / Expo durante desarrollo
+# Habilitado para desarrollo: permite que Expo (celular físico, emulador o
+# expo start --web) consuma la API desde cualquier origen local.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,7 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/", tags=["Root"])
 def read_root():
@@ -37,3 +44,5 @@ app.include_router(espacios_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(reportes_router, prefix=API_PREFIX)
 app.include_router(usuarios_router, prefix=API_PREFIX)
+app.include_router(ia_router, prefix=API_PREFIX)
+app.include_router(ocupacion_router, prefix=API_PREFIX)

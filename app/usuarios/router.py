@@ -1,7 +1,16 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from app.usuarios.schemas import UserCreate, UserResponse
-from app.usuarios.utils import hash_password, verificar_password, crear_token_acceso
+from app.usuarios.utils import (
+    hash_password,
+    verificar_password,
+    crear_token_acceso,
+    requerir_roles,
+    normalizar_rol,
+    ROLES_CANONICOS,
+    ALIAS_ROLES,
+)
+from app.usuarios.clerk_api import listar_usuarios_clerk, asignar_rol_clerk
 from app.database import db
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
@@ -63,3 +72,20 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     # Retornamos la estructura estándar que exige OAuth2
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.get("/", summary="Listar usuarios (solo Gestor)")
+async def listar_usuarios(_: dict = Depends(requerir_roles("Admin"))):
+    """Devuelve los usuarios registrados en Clerk con su id, email y rol actual."""
+    return await listar_usuarios_clerk()
+
+
+@router.patch("/{user_id}/rol", summary="Asignar rol a un usuario (solo Gestor)")
+async def cambiar_rol(user_id: str, nuevo_rol: str,
+                      _: dict = Depends(requerir_roles("Admin"))):
+    """Fija public_metadata.rol del usuario en Clerk (roles canónicos o alias aceptados)."""
+    rol = normalizar_rol(nuevo_rol)
+    if nuevo_rol.strip().lower() not in ROLES_CANONICOS and nuevo_rol.strip().lower() not in ALIAS_ROLES:
+        raise HTTPException(status_code=422,
+                            detail=f"Rol inválido: {nuevo_rol}. Válidos: {sorted(ROLES_CANONICOS)}")
+    return await asignar_rol_clerk(user_id, rol)

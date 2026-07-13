@@ -1,15 +1,18 @@
-version: '3.8'
-
 services:
   # Servicio del Backend (FastAPI)
   backend:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     volumes:
       - .:/app
     environment:
       - MONGO_URI=mongodb://root:axis2026@mongodb:27017/axis_db?authSource=admin
+      # Fase 2: si vision-service corre fuera de Docker (local), usar host.docker.internal.
+      # Si se activa el bloque "vision-service" de abajo, usar http://vision-service:8001.
+      - VISION_SERVICE_URL=http://host.docker.internal:8001
     depends_on:
       - mongodb
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
@@ -23,6 +26,16 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=axis2026
     volumes:
       - mongo_data:/data/db
+  # Vision Service (Fase 2) — comentado por defecto: la imagen es pesada
+  # (incluye ultralytics/torch). Descomentar cuando se quiera correr todo
+  # con un solo "docker compose up", y cambiar VISION_SERVICE_URL del backend
+  # a "http://vision-service:8001".
+  # vision-service:
+  #   build: ./vision-service
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./vision-service:/app
 
 volumes:
   mongo_data:

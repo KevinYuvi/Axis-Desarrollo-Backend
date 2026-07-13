@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.espacios.schemas import EspacioCreate
+from app.espacios.schemas import EspacioCreate, EspacioUpdate
 
 def test_crear_espacio_valido():
     datos = {
@@ -34,3 +34,9 @@ def test_crear_espacio_capacidad_invalida():
     }
     with pytest.raises(ValidationError):
         EspacioCreate(**datos)
+
+def test_espacio_update_parcial():
+    """EspacioUpdate permite cambiar solo el equipamiento sin tocar lo demás."""
+    upd = EspacioUpdate(equipamiento=["Proyector", "Pizarra"])
+    datos = upd.model_dump(exclude_unset=True)
+    assert datos == {"equipamiento": ["Proyector", "Pizarra"]}

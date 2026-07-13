@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv
+
+# Pesos de YOLO descargados en la primera ejecución
+*.pt
+
+# Medios de prueba reales que coloques localmente (no subir imágenes/videos reales)
+samples/*.jpg
+samples/*.jpeg
+samples/*.png
+samples/*.mp4
+samples/*.mov
+!samples/README.md

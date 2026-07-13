@@ -20,4 +20,3 @@ class EspacioResponse(EspacioBase):
 
     class Config:
         from_attributes = True
-

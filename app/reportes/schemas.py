@@ -22,6 +22,9 @@ class ReporteCreate(BaseModel):
         example="media",
     )
 
+    # Recurso puntual afectado dentro del espacio (Proyector, Pizarra, etc.)
+    recurso_afectado: str = Field(default="General", max_length=100)
+
 
 class ReporteResponse(BaseModel):
     id: str
@@ -32,6 +35,10 @@ class ReporteResponse(BaseModel):
 
     descripcion: str
     gravedad: Literal["baja", "media", "alta"]
+
+    # Campos de ticket (Figma): recurso afectado y código secuencial TK-xxx
+    recurso_afectado: str = "General"
+    codigo: Optional[str] = None
 
     fecha_reporte: datetime
     estado: Literal["abierto", "en_proceso", "resuelto"]

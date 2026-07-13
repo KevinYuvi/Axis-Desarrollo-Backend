@@ -17,10 +17,6 @@ coleccion_espacios = db["espacios"]
 
 
 def obtener_hora_ecuador() -> datetime:
-    """
-    Devuelve la hora actual de Ecuador sin timezone.
-    Esto mantiene coherencia con las fechas guardadas desde el front.
-    """
     return datetime.utcnow() - timedelta(hours=5)
 
 
@@ -39,6 +35,7 @@ def obtener_usuario_id(usuario_actual: dict) -> str:
         usuario_actual.get("_id")
         or usuario_actual.get("id")
         or usuario_actual.get("sub")
+        or usuario_actual.get("user_id")
     )
 
     if not usuario_id:
@@ -53,6 +50,10 @@ def obtener_usuario_id(usuario_actual: dict) -> str:
 def convertir_reporte(documento: dict) -> dict:
     documento["id"] = str(documento["_id"])
     documento.pop("_id", None)
+
+    documento.setdefault("recurso_afectado", "General")
+    documento.setdefault("codigo", None)
+
     return documento
 
 
@@ -64,11 +65,13 @@ def convertir_reporte(documento: dict) -> dict:
 )
 async def crear_reporte(
     reporte: ReporteCreate,
-    usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
+    usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
 ):
     espacio_object_id = obtener_object_id(reporte.espacio_id)
 
-    espacio_existe = await coleccion_espacios.find_one({"_id": espacio_object_id})
+    espacio_existe = await coleccion_espacios.find_one(
+        {"_id": espacio_object_id}
+    )
 
     if not espacio_existe:
         raise HTTPException(
@@ -82,10 +85,19 @@ async def crear_reporte(
 
     nuevo_reporte["usuario_id"] = usuario_id
     nuevo_reporte["docente_nombre"] = usuario_actual.get("nombre", "Docente AXIS")
-    nuevo_reporte["espacio_nombre"] = espacio_existe.get("nombre", "Espacio académico")
+    nuevo_reporte["espacio_nombre"] = espacio_existe.get(
+        "nombre",
+        "Espacio académico",
+    )
     nuevo_reporte["espacio_bloque"] = espacio_existe.get("bloque")
     nuevo_reporte["fecha_reporte"] = obtener_hora_ecuador()
     nuevo_reporte["estado"] = "abierto"
+
+    total_usuario = await coleccion_reportes.count_documents(
+        {"usuario_id": usuario_id}
+    )
+
+    nuevo_reporte["codigo"] = f"TK-{total_usuario + 1:03d}"
 
     resultado = await coleccion_reportes.insert_one(nuevo_reporte)
 
@@ -108,7 +120,7 @@ async def crear_reporte(
     summary="Listar mis reportes",
 )
 async def listar_mis_reportes(
-    usuario_actual: dict = Depends(requerir_roles("Docente", "Admin")),
+    usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
 ):
     usuario_id = obtener_usuario_id(usuario_actual)
 
@@ -130,7 +142,7 @@ async def listar_mis_reportes(
     summary="Listar todos los reportes",
 )
 async def listar_reportes(
-    usuario_actual: dict = Depends(requerir_roles("Admin")),
+    usuario_actual: dict = Depends(requerir_roles("Admin", "Ayudante")),
 ):
     reportes = []
 
@@ -150,7 +162,7 @@ async def listar_reportes(
 async def actualizar_estado_reporte(
     reporte_id: str,
     nuevo_estado: str,
-    usuario_actual: dict = Depends(requerir_roles("Admin")),
+    usuario_actual: dict = Depends(requerir_roles("Admin", "Ayudante")),
 ):
     estados_permitidos = ["abierto", "en_proceso", "resuelto"]
 
@@ -162,7 +174,9 @@ async def actualizar_estado_reporte(
 
     reporte_object_id = obtener_object_id(reporte_id)
 
-    reporte_existe = await coleccion_reportes.find_one({"_id": reporte_object_id})
+    reporte_existe = await coleccion_reportes.find_one(
+        {"_id": reporte_object_id}
+    )
 
     if not reporte_existe:
         raise HTTPException(
@@ -172,7 +186,12 @@ async def actualizar_estado_reporte(
 
     await coleccion_reportes.update_one(
         {"_id": reporte_object_id},
-        {"$set": {"estado": nuevo_estado}},
+        {
+            "$set": {
+                "estado": nuevo_estado,
+                "fecha_actualizacion": obtener_hora_ecuador(),
+            }
+        },
     )
 
     reporte_actualizado = await coleccion_reportes.find_one(
