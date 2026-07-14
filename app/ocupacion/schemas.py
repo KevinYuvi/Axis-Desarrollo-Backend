@@ -28,9 +28,9 @@ class EspacioOcupacion(BaseModel):
     updatedAt: datetime
     latitude: Optional[float] = Field(default=None, example=-0.1995)
     longitude: Optional[float] = Field(default=None, example=-78.5042)
-    source: Literal["mock", "vision-service", "vision-service-fallback"] = "mock"
+    source: Literal["vision-service", "vision-service-fallback"] = "vision-service"
     aiEnabled: bool = True
-    detectionMethod: str = "mock_vision_ready"
+    detectionMethod: str = "vision_scheduler_latest"
     recommendationReason: Optional[str] = None
 
 
