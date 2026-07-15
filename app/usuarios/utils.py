@@ -119,12 +119,13 @@ def _decodificar_clerk(token: str) -> dict:
         "verify_iss": True,
         "verify_aud": bool(CLERK_AUDIENCE),
     }
-
+    
     decode_kwargs = {
         "key": signing_key.key,
         "algorithms": ["RS256"],
         "issuer": CLERK_ISSUER,
         "options": decode_options,
+        "leeway": 120,
     }
 
     if CLERK_AUDIENCE:
