@@ -13,9 +13,22 @@ from app.estudiantes.schemas import (
     ClaseDetalleResponse,
 )
 from app.estudiantes import service
-from app.usuarios.utils import obtener_usuario_actual, requerir_roles
+from app.usuarios.utils import requerir_roles
+from app.realtime.manager import realtime_manager
 
 router = APIRouter(prefix="/estudiantes", tags=["Estudiantes"])
+
+
+async def emitir_actualizacion_reportes(origen: str) -> None:
+    await realtime_manager.emitir({
+        "tipo": "reportes_actualizados",
+        "origen": origen,
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": origen,
+    })
 
 
 @router.get("/mis-clases-hoy", response_model=ClasesHoyResponse)
@@ -90,11 +103,14 @@ async def reportar_incidencia_clase_actual(
             imagenes=imagenes,
         )
 
+        await emitir_actualizacion_reportes("crear_reporte_estudiante")
+
         return {
             "ok": True,
             "message": "Reporte registrado correctamente",
             "data": reporte,
         }
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -132,6 +148,7 @@ async def asignar_grupo_estudiante(
             "message": "Grupo asignado correctamente al estudiante",
             "data": asignacion,
         }
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
