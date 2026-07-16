@@ -25,6 +25,43 @@ def normalizar_texto(texto: str) -> str:
     return texto.strip()
 
 
+def normalizar_texto_horario(texto: str) -> str:
+    """
+    Normaliza texto para detectar horas.
+    Importante: aquí NO se elimina ':' hasta después de convertir 10:30.
+    """
+    texto = str(texto or "").lower().strip()
+
+    texto = texto.replace("á", "a")
+    texto = texto.replace("é", "e")
+    texto = texto.replace("í", "i")
+    texto = texto.replace("ó", "o")
+    texto = texto.replace("ú", "u")
+    texto = texto.replace("ñ", "n")
+
+    texto = texto.replace("a. m.", "am")
+    texto = texto.replace("p. m.", "pm")
+    texto = texto.replace("a.m.", "am")
+    texto = texto.replace("p.m.", "pm")
+    texto = texto.replace("a.m", "am")
+    texto = texto.replace("p.m", "pm")
+    texto = texto.replace("a m", "am")
+    texto = texto.replace("p m", "pm")
+
+    texto = texto.replace("hasta las", "hasta")
+    texto = texto.replace("hasta la", "hasta")
+    texto = texto.replace("desde las", "desde")
+    texto = texto.replace("desde la", "desde")
+    texto = texto.replace("de las", "de")
+    texto = texto.replace("de la", "de")
+
+    texto = texto.replace("-", " ")
+    texto = texto.replace("_", " ")
+
+    texto = re.sub(r"\s+", " ", texto)
+    return texto.strip()
+
+
 def detectar_fecha_reserva(texto: str):
     texto_norm = normalizar_texto(texto)
     ahora = obtener_hora_ecuador()
@@ -38,6 +75,8 @@ def detectar_fecha_reserva(texto: str):
     if "hoy" in texto_norm:
         return ahora.date(), "hoy"
 
+    # Regla principal para AXIS:
+    # Si el usuario no especifica día, se entiende que la reserva es para HOY.
     return ahora.date(), "hoy"
 
 
@@ -66,6 +105,8 @@ def normalizar_numeros_texto(texto: str) -> str:
     texto = f" {normalizar_texto(texto)} "
 
     reemplazos = {
+        " cero ": " 0 ",
+        " una ": " 1 ",
         " uno ": " 1 ",
         " dos ": " 2 ",
         " tres ": " 3 ",
@@ -98,25 +139,29 @@ def normalizar_numeros_texto(texto: str) -> str:
 
 
 def preparar_texto_horario(texto: str) -> str:
-    texto = normalizar_numeros_texto(texto)
+    texto_base = normalizar_texto_horario(texto)
 
-    texto = texto.replace("p m", "pm")
-    texto = texto.replace("a m", "am")
-    texto = texto.replace("p.m", "pm")
-    texto = texto.replace("a.m", "am")
+    texto_base = re.sub(r"\b(\d{1,2}):(\d{1,2})\s*(am|pm)?\b", r"\1 y \2 \3", texto_base)
+    texto_base = re.sub(r"\b(\d{1,2})y(\d{1,2})\b", r"\1 y \2", texto_base)
 
-    texto = re.sub(r"\b(\d{1,2})\s*(pa|pe|p)\b", r"\1 pm", texto)
-    texto = re.sub(r"\b(\d{1,2})\s*(eme|m)\b", r"\1 am", texto)
+    texto_base = re.sub(r"\b(\d{1,2})\s*(pa|pe|p)\b", r"\1 pm", texto_base)
+    texto_base = re.sub(r"\b(\d{1,2})\s*(eme|m)\b", r"\1 am", texto_base)
 
-    texto = re.sub(r"\b(\d{1,2})y(\d{1,2})\b", r"\1 y \2", texto)
-    texto = re.sub(r"\b(\d{1,2}):(\d{1,2})\s*(am|pm)?\b", r"\1 y \2 \3", texto)
+    texto_base = texto_base.replace(",", " ")
+    texto_base = texto_base.replace(".", " ")
+    texto_base = texto_base.replace(";", " ")
+    texto_base = texto_base.replace(":", " ")
+    texto_base = texto_base.replace("!", " ")
+    texto_base = texto_base.replace("?", " ")
 
-    texto = texto.replace("hasta las", "hasta")
-    texto = texto.replace("desde las", "desde")
-    texto = texto.replace("de las", "de")
+    texto_base = re.sub(r"\s+", " ", texto_base).strip()
 
-    texto = re.sub(r"\s+", " ", texto)
-    return texto.strip()
+    texto_numeros = normalizar_numeros_texto(texto_base)
+
+    texto_numeros = texto_numeros.replace("p m", "pm")
+    texto_numeros = texto_numeros.replace("a m", "am")
+
+    return re.sub(r"\s+", " ", texto_numeros).strip()
 
 
 def convertir_hora_a_24(hora_texto: str, periodo: Optional[str]) -> Optional[int]:
@@ -129,7 +174,7 @@ def convertir_hora_a_24(hora_texto: str, periodo: Optional[str]) -> Optional[int
         if periodo:
             periodo = periodo.lower().replace(".", "").strip()
 
-            if periodo == "pm" and hora != 12:
+            if periodo == "pm" and hora < 12:
                 hora += 12
 
             if periodo == "am" and hora == 12:
@@ -196,36 +241,50 @@ def extraer_rango_horario(texto: str) -> Optional[tuple[int, int, int, int]]:
         if hora_inicio is None or hora_fin is None:
             continue
 
-        inicio_total = hora_inicio * 60 + minuto_inicio
-        fin_total = hora_fin * 60 + minuto_fin
-
-        if fin_total <= inicio_total:
-            continue
-
         return hora_inicio, minuto_inicio, hora_fin, minuto_fin
 
     return None
 
 
+def extraer_fecha_horario_desde_texto(texto: str) -> Optional[dict]:
+    rango = extraer_rango_horario(texto)
+
+    if not rango:
+        return None
+
+    hora_inicio_num, minuto_inicio_num, hora_fin_num, minuto_fin_num = rango
+    fecha_reserva, etiqueta_fecha = detectar_fecha_reserva(texto)
+
+    hora_inicio = datetime(
+        fecha_reserva.year,
+        fecha_reserva.month,
+        fecha_reserva.day,
+        hora_inicio_num,
+        minuto_inicio_num,
+        0,
+    )
+
+    hora_fin = datetime(
+        fecha_reserva.year,
+        fecha_reserva.month,
+        fecha_reserva.day,
+        hora_fin_num,
+        minuto_fin_num,
+        0,
+    )
+
+    if hora_fin <= hora_inicio:
+        hora_fin = hora_fin + timedelta(days=1)
+
+    return {
+        "hora_inicio": hora_inicio,
+        "hora_fin": hora_fin,
+        "etiqueta_fecha": etiqueta_fecha,
+    }
+
+
 def detectar_solicitud_reserva(texto: str) -> bool:
     texto_norm = normalizar_texto(texto)
-
-    patrones_consulta = [
-        r"\bque reservas\b",
-        r"\bver reservas\b",
-        r"\bmis reservas\b",
-        r"\bconsultar reservas\b",
-        r"\bmostrar reservas\b",
-        r"\blistar reservas\b",
-        r"\benlistar reservas\b",
-        r"\bhorario\b",
-        r"\bhorarios\b",
-        r"\bque hora\b",
-        r"\ba que hora\b",
-    ]
-
-    if any(re.search(patron, texto_norm) for patron in patrones_consulta):
-        return False
 
     patrones_reserva = [
         r"\bquiero reservar\b",
@@ -258,9 +317,29 @@ def detectar_solicitud_reserva(texto: str) -> bool:
         r"\bagendame\b",
         r"\bocupar el aula\b",
         r"\bocupar laboratorio\b",
+        r"\bocupar el laboratorio\b",
     ]
 
-    return any(re.search(patron, texto_norm) for patron in patrones_reserva)
+    hay_reserva = any(re.search(patron, texto_norm) for patron in patrones_reserva)
+
+    if not hay_reserva:
+        return False
+
+    patrones_consulta_sin_reserva = [
+        r"\bque reservas\b",
+        r"\bver reservas\b",
+        r"\bmis reservas\b",
+        r"\bconsultar reservas\b",
+        r"\bmostrar reservas\b",
+        r"\blistar reservas\b",
+        r"\benlistar reservas\b",
+    ]
+
+    if any(re.search(patron, texto_norm) for patron in patrones_consulta_sin_reserva):
+        return False
+
+    return True
+
 
 def detectar_confirmacion(texto: str) -> bool:
     texto_norm = normalizar_texto(texto)
@@ -302,8 +381,6 @@ def detectar_cancelacion(texto: str) -> bool:
 
     cancelaciones = {
         "no",
-        "no cancelar",
-        "no cancela",
         "cancelar",
         "cancela",
         "cancelalo",
@@ -321,8 +398,6 @@ def detectar_cancelacion(texto: str) -> bool:
     patrones = [
         r"\bcancela la reserva\b",
         r"\bcancelar reserva\b",
-        r"\bno cancelar\b",
-        r"\bno cancela\b",
         r"\bmejor no\b",
         r"\bya no\b",
         r"\bno la reserves\b",
@@ -435,13 +510,13 @@ def extraer_materia_reserva(texto: str) -> str:
         materia = match.group(1).strip()
 
         materia = re.sub(
-            r"\s+de\s+\d{1,2}\s*(am|pm)?\s+a\s+\d{1,2}\s*(am|pm)?",
+            r"\s+de\s+\d{1,2}(?:\s+y\s+\d{1,2})?\s*(am|pm)?\s+a\s+\d{1,2}(?:\s+y\s+\d{1,2})?\s*(am|pm)?",
             "",
             materia,
         ).strip()
 
         materia = re.sub(
-            r"\s+desde\s+\d{1,2}\s*(am|pm)?\s+hasta\s+\d{1,2}\s*(am|pm)?",
+            r"\s+desde\s+\d{1,2}(?:\s+y\s+\d{1,2})?\s*(am|pm)?\s+hasta\s+\d{1,2}(?:\s+y\s+\d{1,2})?\s*(am|pm)?",
             "",
             materia,
         ).strip()
