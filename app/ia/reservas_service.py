@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from app.database import db
+from app.realtime.manager import realtime_manager
 from app.usuarios.utils import normalizar_rol
 from app.ia.state import (
     guardar_reserva_pendiente,
@@ -27,6 +28,12 @@ from app.ia.aulas_service import (
 coleccion_reservas = db["reservas"]
 
 ROLES_CON_ACCIONES = {"docente", "admin", "ayudante"}
+
+
+async def emitir_eventos_reserva_ia(origen: str = "ia_crear_reserva") -> None:
+    await realtime_manager.emitir({"tipo": "reservas_actualizadas", "origen": origen})
+    await realtime_manager.emitir({"tipo": "aulas_actualizadas", "origen": origen})
+    await realtime_manager.emitir({"tipo": "dashboard_actualizado", "origen": origen})
 
 
 def construir_fechas_reserva(
@@ -409,13 +416,15 @@ async def resolver_confirmacion_reserva(
         "hora_fin": hora_fin,
         "usuario_id": pendiente.get("usuario_id"),
         "docente_nombre": pendiente.get("docente_nombre"),
-        "estado": "activa",
+        "estado": "reservada",
         "origen": "ia_chat",
         "fecha_creacion": obtener_hora_ecuador(),
         "liberada_anticipadamente": False,
     }
 
     resultado = await coleccion_reservas.insert_one(nueva_reserva)
+
+    await emitir_eventos_reserva_ia("ia_crear_reserva")
 
     eliminar_reserva_pendiente(usuario_id)
 
