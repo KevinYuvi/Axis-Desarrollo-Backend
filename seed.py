@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+from datetime import datetime
 
 # En consolas Windows (cp1252) los emojis de los prints rompen el script;
 # forzamos UTF-8 en la salida estándar cuando sea posible.
@@ -24,7 +25,9 @@ async def poblar_base_datos():
 
     # 1. Limpiamos la colección para evitar colisiones
     existentes = await db["espacios"].count_documents({})
-    print(f"📊 Documentos existentes en 'espacios' antes de limpiar: {existentes}")
+    print(f"Documentos existentes en 'espacios' antes de limpiar: {existentes}")
+    await db["reservas"].delete_many({})
+    await db["reportes"].delete_many({})
     await db["espacios"].delete_many({})
     print("🧹 Colección 'espacios' limpiada por completo.")
     
@@ -191,8 +194,100 @@ async def poblar_base_datos():
 
     # 3. Inserción masiva
     resultado = await db["espacios"].insert_many(espacios_seed)
-    print(f"✅ ¡Siembra completada con éxito!")
-    print(f"📦 Se registraron un total de {len(resultado.inserted_ids)} espacios en la base de datos distribuidos en 6 edificios.")
+    print(f"¡Siembra completada con éxito!")
+    print(f"Se registraron un total de {len(resultado.inserted_ids)} espacios en la base de datos distribuidos en 6 edificios.")
+
+    # 4. Datos académicos base.
+    # Estos datos ya no están quemados en el service.py: quedan en MongoDB y
+    # pueden reemplazarse por formularios administrativos más adelante.
+    await db["edificios"].delete_many({})
+    await db["grupos"].delete_many({})
+    await db["horarios_estudiantes"].delete_many({})
+    await db["estudiante_grupos"].delete_many({})
+
+    edificios_academicos = [
+        {
+            "id": "edificio-a",
+            "nombre": "Edificio A",
+            "bloque": "edificio_a",
+            "referencia": "Edificio de aulas A, junto al ingreso principal.",
+            "latitude": -0.198285,
+            "longitude": -78.503981,
+        },
+        {
+            "id": "edificio-labs",
+            "nombre": "Edificio de Laboratorios",
+            "bloque": "edificio_labs",
+            "referencia": "Zona de laboratorios académicos.",
+            "latitude": -0.198649,
+            "longitude": -78.503011,
+        },
+    ]
+
+    await db["edificios"].insert_many(edificios_academicos)
+
+    grupo = {
+        "id": "grupo-sexto-a",
+        "nombre": "Sexto A",
+        "carrera": "Desarrollo de Software",
+        "nivel": "Sexto",
+        "activo": True,
+    }
+
+    await db["grupos"].insert_one(grupo)
+
+    horarios_estudiantes = []
+    dias_academicos = ["lunes", "martes", "miercoles", "jueves", "viernes"]
+
+    for dia in dias_academicos:
+        horarios_estudiantes.extend([
+            {
+                "grupo_id": "grupo-sexto-a",
+                "materia": "Programación II",
+                "docente": "Ing. Carlos Pérez",
+                "aula": "Aula EA39A1-1",
+                "edificio_id": "edificio-a",
+                "dia_semana": dia,
+                "hora_inicio": "08:00",
+                "hora_fin": "10:00",
+                "activo": True,
+            },
+            {
+                "grupo_id": "grupo-sexto-a",
+                "materia": "Base de Datos",
+                "docente": "Ing. María López",
+                "aula": "Laboratorio LAB2",
+                "edificio_id": "edificio-labs",
+                "dia_semana": dia,
+                "hora_inicio": "10:00",
+                "hora_fin": "12:00",
+                "activo": True,
+            },
+            {
+                "grupo_id": "grupo-sexto-a",
+                "materia": "Ingeniería de Software",
+                "docente": "Ing. Ana Zambrano",
+                "aula": "Aula EA39A2-2",
+                "edificio_id": "edificio-a",
+                "dia_semana": dia,
+                "hora_inicio": "14:00",
+                "hora_fin": "16:00",
+                "activo": True,
+            },
+        ])
+    await db["horarios_estudiantes"].insert_many(horarios_estudiantes)
+
+    await db["estudiante_grupos"].insert_one({
+        "usuario_id": "mock-estudiante-id",
+        "email": "estudiante@uce.edu.ec",
+        "grupo_id": "grupo-sexto-a",
+        "grupo_nombre": "Sexto A",
+        "activo": True,
+        "asignado_por": "seed",
+        "fecha_asignacion": datetime.utcnow(),
+    })
+
+    print("✅ Datos académicos base creados: edificios, grupo, horarios y asignación de prueba.")
 
 if __name__ == "__main__":
     asyncio.run(poblar_base_datos())
