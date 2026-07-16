@@ -6,116 +6,125 @@ from app.schemas import AnalyzeData, AnalyzeRequest
 
 
 def _calculate_occupancy_status(occupancy_percent: Optional[int]) -> str:
-    """
-    Calcula el estado de ocupación a partir del porcentaje, con los mismos
-    umbrales que usa el backend principal (Fase 1) para que ambos contratos
-    sean compatibles.
-
-    @param occupancy_percent: porcentaje de ocupación calculado, o None si no aplica
-    @return: estado textual (Disponible, Próximo, Ocupado, Sin datos)
-    """
     if occupancy_percent is None:
         return "Sin datos"
+
     if occupancy_percent >= 90:
         return "Ocupado"
+
     if occupancy_percent >= 70:
         return "Próximo"
+
     return "Disponible"
 
 
 def _calculate_occupancy_percent(occupied_seats: int, total_seats: int) -> Optional[int]:
-    """
-    Calcula el porcentaje de ocupación protegiendo la división por cero.
-
-    @param occupied_seats: puestos ocupados detectados
-    @param total_seats: capacidad total del espacio
-    @return: porcentaje redondeado, o None si el espacio no tiene puestos definidos
-    """
     if total_seats <= 0:
         return None
+
     return round((occupied_seats / total_seats) * 100)
 
 
-def _estimate_available_computers(computers_total: int, occupancy_percent: Optional[int]) -> int:
-    """
-    Estima proporcionalmente cuántas computadoras están libres según la
-    ocupación general del espacio (no hay detección real de computadoras en esta fase).
-
-    @param computers_total: cantidad total de computadoras del espacio
-    @param occupancy_percent: porcentaje de ocupación calculado (puede ser None)
-    @return: cantidad estimada de computadoras disponibles
-    """
+def _estimate_available_computers(
+    computers_total: int,
+    occupancy_percent: Optional[int],
+) -> int:
     if computers_total <= 0:
         return 0
 
-    occupancy_ratio = (occupancy_percent or 0) / 100
+    if occupancy_percent is None:
+        return 0
+
+    occupancy_ratio = occupancy_percent / 100
     estimated_available = round(computers_total * (1 - occupancy_ratio))
+
     return max(0, min(computers_total, estimated_available))
 
 
-def _simulate_people_count(total_seats: int) -> int:
-    """
-    Genera un conteo de personas simulado y determinístico para el modo
-    fallback (sin archivo de muestra o sin modelo YOLO disponible).
+def _detect_people_count(source_type: str, source_path: str) -> Optional[int]:
+    if source_type == "ip_camera_snapshot":
+        return detector.count_people_in_ip_camera_snapshot(source_path)
 
-    @param total_seats: capacidad total del espacio
-    @return: cantidad simulada de personas ocupando el espacio
-    """
-    return round(total_seats * config.FALLBACK_OCCUPANCY_RATIO)
+    resolved_path = config.SERVICE_ROOT_DIR / source_path
 
+    if not resolved_path.exists():
+        return None
 
-def _detect_people_count(source_type: str, resolved_path) -> Optional[int]:
-    """
-    Ejecuta la detección real (imagen o video) delegando en el detector.
-
-    @param source_type: "sample_image" o "sample_video"
-    @param resolved_path: ruta absoluta ya resuelta del archivo de muestra
-    @return: cantidad de personas detectadas, o None si no fue posible detectar
-    """
     if source_type == "sample_video":
         return detector.count_people_in_video(resolved_path)
+
     return detector.count_people_in_image(resolved_path)
+
+
+def _get_detection_method(source_type: str, people_count: Optional[int]) -> str:
+    if people_count is None:
+        if source_type == "ip_camera_snapshot":
+            return "camera_unreachable_or_yolo_failed"
+
+        return "sample_not_found_or_yolo_failed"
+
+    if source_type == "ip_camera_snapshot":
+        return "yolo_ip_camera_snapshot"
+
+    if source_type == "sample_video":
+        return "yolo_local_sample_video"
+
+    return "yolo_local_sample_image"
 
 
 def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
     """
-    Analiza un espacio a partir de una imagen/video local de prueba y devuelve
-    las métricas de ocupación en el mismo contrato que usa el backend principal.
-    Nunca lanza por archivo faltante o modelo no disponible: degrada al modo
-    fallback simulado para no romper la cadena backend -> vision-service.
+    Analiza un espacio usando únicamente fuente real configurada.
 
-    @param request: payload recibido en POST /vision/analyze
-    @return: datos de ocupación calculados, listos para responder al backend principal
+    No usa mock.
+    No usa fallback.
+    No simula personas.
+
+    Si la cámara o YOLO fallan, devuelve estado "Sin datos".
     """
-    if request.sourceType == "ip_camera_snapshot":
-        people_count = detector.count_people_in_ip_camera_snapshot(request.sourcePath)
-        detection_method = (
-            "yolo_ip_camera_snapshot" if people_count is not None else "fallback_camera_unreachable"
-        )
-    else:
-        resolved_path = config.SERVICE_ROOT_DIR / request.sourcePath
-        people_count = None
-        detection_method = "fallback_no_sample"
 
-        if resolved_path.exists():
-            people_count = _detect_people_count(request.sourceType, resolved_path)
-            detection_method = (
-                "yolo_local_sample_video" if request.sourceType == "sample_video" else "yolo_local_sample"
-            )
-            if people_count is None:
-                detection_method = "fallback_model_unavailable"
+    people_count = _detect_people_count(
+        source_type=request.sourceType,
+        source_path=request.sourcePath,
+    )
+
+    detection_method = _get_detection_method(
+        source_type=request.sourceType,
+        people_count=people_count,
+    )
 
     if people_count is None:
-        people_count = _simulate_people_count(request.totalSeats)
-        source = "vision-service-fallback"
-    else:
-        source = "vision-service"
+        return AnalyzeData(
+            spaceId=request.spaceId,
+            spaceName=request.spaceName,
+            peopleCount=0,
+            totalSeats=request.totalSeats,
+            occupiedSeats=0,
+            freeSeats=0,
+            computersTotal=request.computersTotal,
+            computersAvailable=0,
+            occupancyPercent=None,
+            status="Sin datos",
+            source="vision-service-fallback",
+            detectionMethod=detection_method,
+            aiEnabled=True,
+            updatedAt=datetime.now(timezone.utc),
+        )
 
     occupied_seats = people_count
     free_seats = max(request.totalSeats - occupied_seats, 0)
-    occupancy_percent = _calculate_occupancy_percent(occupied_seats, request.totalSeats)
+
+    occupancy_percent = _calculate_occupancy_percent(
+        occupied_seats=occupied_seats,
+        total_seats=request.totalSeats,
+    )
+
     status = _calculate_occupancy_status(occupancy_percent)
-    computers_available = _estimate_available_computers(request.computersTotal, occupancy_percent)
+
+    computers_available = _estimate_available_computers(
+        computers_total=request.computersTotal,
+        occupancy_percent=occupancy_percent,
+    )
 
     return AnalyzeData(
         spaceId=request.spaceId,
@@ -128,7 +137,7 @@ def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
         computersAvailable=computers_available,
         occupancyPercent=occupancy_percent,
         status=status,
-        source=source,
+        source="vision-service",
         detectionMethod=detection_method,
         aiEnabled=True,
         updatedAt=datetime.now(timezone.utc),
@@ -136,13 +145,6 @@ def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
 
 
 def to_latest_analysis_item(stored_analysis: dict) -> dict:
-    """
-    Convierte un análisis guardado (formato AnalyzeData serializado) al
-    contrato más liviano que expone GET /vision/latest.
-
-    @param stored_analysis: análisis tal como lo guardó el scheduler en el storage
-    @return: diccionario listo para validar contra LatestAnalysisItem
-    """
     return {
         "spaceId": stored_analysis["spaceId"],
         "personCount": stored_analysis["peopleCount"],

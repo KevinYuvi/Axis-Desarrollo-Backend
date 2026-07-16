@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from datetime import datetime, timedelta
-
+from bson import ObjectId
+from bson.errors import InvalidId
 from app.reportes.schemas import ReporteCreate, ReporteResponse
 from app.database import db
 from app.usuarios.utils import requerir_roles
@@ -9,6 +10,7 @@ from app.usuarios.utils import requerir_roles
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from app.realtime.manager import realtime_manager
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
@@ -66,7 +68,7 @@ def convertir_reporte(documento: dict) -> dict:
 async def crear_reporte(
     reporte: ReporteCreate,
     usuario_actual: dict = Depends(requerir_roles("Docente", "Ayudante", "Admin")),
-):
+    ):
     espacio_object_id = obtener_object_id(reporte.espacio_id)
 
     espacio_existe = await coleccion_espacios.find_one(
@@ -111,6 +113,16 @@ async def crear_reporte(
             detail="Error al registrar el reporte",
         )
 
+    await realtime_manager.emitir({
+        "tipo": "reportes_actualizados",
+        "origen": "crear_reporte",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "crear_reporte",
+    })
+
     return convertir_reporte(reporte_guardado)
 
 
@@ -153,6 +165,35 @@ async def listar_reportes(
 
     return reportes
 
+@router.get(
+    "/{reporte_id}",
+    response_model=dict,
+    summary="Obtener detalle de un reporte",
+)
+async def obtener_detalle_reporte(
+    reporte_id: str,
+    usuario_actual: dict = Depends(requerir_roles("Admin", "Docente", "Estudiante")),
+):
+    try:
+        reporte_object_id = ObjectId(reporte_id)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El id del reporte no tiene un formato válido",
+        )
+
+    reporte = await coleccion_reportes.find_one({"_id": reporte_object_id})
+
+    if not reporte:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró el reporte",
+        )
+
+    reporte["id"] = str(reporte["_id"])
+    reporte.pop("_id", None)
+
+    return reporte
 
 @router.patch(
     "/{reporte_id}/estado",
@@ -163,7 +204,7 @@ async def actualizar_estado_reporte(
     reporte_id: str,
     nuevo_estado: str,
     usuario_actual: dict = Depends(requerir_roles("Admin", "Ayudante")),
-):
+    ):
     estados_permitidos = ["abierto", "en_proceso", "resuelto"]
 
     if nuevo_estado not in estados_permitidos:
@@ -197,5 +238,15 @@ async def actualizar_estado_reporte(
     reporte_actualizado = await coleccion_reportes.find_one(
         {"_id": reporte_object_id}
     )
+
+    await realtime_manager.emitir({
+        "tipo": "reportes_actualizados",
+        "origen": "actualizar_estado_reporte",
+    })
+
+    await realtime_manager.emitir({
+        "tipo": "dashboard_actualizado",
+        "origen": "actualizar_estado_reporte",
+    })
 
     return convertir_reporte(reporte_actualizado)

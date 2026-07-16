@@ -5,3 +5,4 @@ ultralytics
 opencv-python-headless
 httpx
 numpy
+os
