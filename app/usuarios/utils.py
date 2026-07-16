@@ -4,7 +4,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jwt import PyJWKClient
 
 
@@ -21,7 +21,7 @@ CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "").strip()
 CLERK_AUDIENCE = os.getenv("CLERK_AUDIENCE", "").strip() or None
 ALLOWED_EMAIL_DOMAIN = os.getenv("ALLOWED_EMAIL_DOMAIN", "uce.edu.ec").strip().lower()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/usuarios/login")
+oauth2_scheme = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
@@ -181,7 +181,11 @@ def _decodificar_legacy(token: str) -> dict:
     }
 
 
-async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
+async def obtener_usuario_actual(
+    credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
+) -> dict:
+    token = credentials.credentials
+
     if token == "mock-ayudante-token":
         return {
             "id": "mock-ayudante-id",
@@ -231,7 +235,6 @@ async def obtener_usuario_actual(token: str = Depends(oauth2_scheme)) -> dict:
     except Exception as error:
         print("ERROR VALIDANDO TOKEN LEGACY:", repr(error))
         raise credenciales_exception
-
 
 def requerir_roles(*roles_permitidos: str):
     permitidos = {normalizar_rol(r) for r in roles_permitidos}
