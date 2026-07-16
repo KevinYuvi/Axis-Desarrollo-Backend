@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 
-# Almacenamiento en memoria del último análisis por espacio (Fase 3 — sin
-# base de datos todavía). Es seguro sin locks porque tanto el scheduler como
+# Almacenamiento en memoria del último análisis por espacio (sin base de
+# datos). Es seguro sin locks porque tanto el scheduler como
 # los endpoints corren como tareas cooperativas en el mismo event loop de
 # asyncio: nunca se interrumpe una operación de dict a mitad de camino.
 _last_analysis: Dict[str, dict] = {}

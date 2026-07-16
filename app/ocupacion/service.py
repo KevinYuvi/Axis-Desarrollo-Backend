@@ -4,20 +4,26 @@ from app.ocupacion import vision_client
 from app.ocupacion.schemas import EspacioOcupacion
 
 
+# Metadatos estáticos del espacio monitoreado por cámara. La clave debe
+# coincidir con el "spaceId" registrado en vision-service/app/space_registry.py
+# y con LIVE_CAMERA_SPACE_ID del frontend, para que estadísticas, frame
+# anotado y stream en vivo apunten al mismo espacio físico.
 STATIC_SPACE_METADATA = {
-    "biblioteca-fica": {
-        "name": "Biblioteca FICA",
-        "description": "Biblioteca de la Facultad de Ingeniería, Ciencias Físicas y Matemática.",
+    "biblioteca-cisco": {
+        "name": "Biblioteca Cisco",
+        "description": "Biblioteca Cisco de la Universidad Central.",
         "type": "library",
-        "building": "Facultad de Ingeniería",
+        "building": "Universidad Central",
         "floor": "Planta Baja",
         "totalSeats": 40,
         "computersTotal": 12,
         "studyRoomsTotal": 3,
         "studyRoomsAvailable": 2,
         "distanceMinutes": 5,
-        "latitude": -0.1995,
-        "longitude": -78.5042,
+        # Coordenadas GPS de la biblioteca dentro del campus; las usa el
+        # frontend para el botón "Ver ubicación" (mapa y ruta en Google Maps).
+        "latitude": -0.198310,
+        "longitude": -78.503950,
     },
 }
 
@@ -109,9 +115,8 @@ def _snapshot_to_space(snapshot: dict) -> Optional[EspacioOcupacion]:
 
 async def get_spaces() -> List[EspacioOcupacion]:
     """
-    Retorna únicamente los espacios que vienen desde vision-service.
-    No usa mock_data.py.
-    No devuelve espacios quemados.
+    Retorna los espacios monitoreados según el último análisis del
+    vision-service, enriquecidos con los metadatos estáticos de cada espacio.
     """
 
     latest_snapshots = await vision_client.get_latest_snapshots()

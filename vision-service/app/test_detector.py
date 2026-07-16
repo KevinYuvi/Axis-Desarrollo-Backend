@@ -38,8 +38,8 @@ def test_count_people_in_ip_camera_snapshot_devuelve_none_si_la_imagen_no_se_pue
 
 
 IP_CAMERA_REQUEST = AnalyzeRequest(
-    spaceId="biblioteca-fica",
-    spaceName="Biblioteca FICA",
+    spaceId="biblioteca-cisco",
+    spaceName="Biblioteca Cisco",
     totalSeats=40,
     computersTotal=12,
     sourceType="ip_camera_snapshot",

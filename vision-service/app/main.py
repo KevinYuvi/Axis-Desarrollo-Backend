@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Axis Vision Service",
-    description="Microservicio de visión artificial de Axis (Fase 3 — análisis automático en segundo plano).",
+    description="Microservicio de visión artificial de Axis (análisis automático en segundo plano).",
     version="0.2.0",
     lifespan=lifespan,
 )
@@ -56,7 +56,7 @@ async def check_vision_service_health():
 async def analyze_occupancy_from_sample(request: AnalyzeRequest):
     """
     Analiza un espacio puntual a partir de una imagen/video local de prueba
-    (uso manual/debug — el flujo automático de Fase 3 usa el scheduler y
+    (uso manual/debug — el flujo automático usa el scheduler y
     GET /vision/latest, no este endpoint). Nunca expone detalles internos del
     error (stack trace); ante cualquier fallo inesperado responde 500 controlado.
 

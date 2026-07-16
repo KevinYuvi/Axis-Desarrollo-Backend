@@ -7,11 +7,9 @@ calcular métricas de ocupación compatibles con el contrato que ya usa Axis.
 No usa cámaras reales, no guarda fotos/videos/rostros, no hace reconocimiento
 facial ni identifica personas — solo cuenta objetos de la clase `"person"`.
 
-Desde la Fase 3, un **scheduler interno** analiza automáticamente todos los
-espacios cada 30 segundos y guarda el último resultado en memoria — no hace
-falta pedir un análisis puntual para que la ocupación se mantenga al día.
-Ver `docs/occupancy-phase-3.md` en la raíz del repositorio backend para el
-detalle completo.
+Un **scheduler interno** analiza automáticamente todos los espacios cada 30
+segundos y guarda el último resultado en memoria — no hace falta pedir un
+análisis puntual para que la ocupación se mantenga al día.
 
 ## Cómo levantarlo (local)
 
@@ -46,12 +44,12 @@ docker run -p 8001:8001 axis-vision-service
 Body:
 ```json
 {
-  "spaceId": "biblioteca-fica",
-  "spaceName": "Biblioteca FICA",
+  "spaceId": "biblioteca-cisco",
+  "spaceName": "Biblioteca Cisco",
   "totalSeats": 40,
   "computersTotal": 12,
   "sourceType": "sample_image",
-  "sourcePath": "samples/biblioteca_fica.jpg"
+  "sourcePath": "samples/biblioteca_cisco.jpg"
 }
 ```
 Respuesta (con detección real o en modo fallback si falta el archivo o el
@@ -61,8 +59,8 @@ modelo no está disponible — ver `data.source`):
   "ok": true,
   "message": "Análisis de ocupación generado correctamente",
   "data": {
-    "spaceId": "biblioteca-fica",
-    "spaceName": "Biblioteca FICA",
+    "spaceId": "biblioteca-cisco",
+    "spaceName": "Biblioteca Cisco",
     "peopleCount": 18,
     "totalSeats": 40,
     "occupiedSeats": 18,
@@ -87,7 +85,7 @@ vacío (`[]`).
 ```json
 [
   {
-    "spaceId": "biblioteca-fica",
+    "spaceId": "biblioteca-cisco",
     "personCount": 18,
     "freeSeats": 22,
     "occupancyPercentage": 45,
@@ -110,4 +108,7 @@ vacío (`[]`).
 
 ## Integración con el backend principal
 
-Ver `docs/occupancy-phase-3.md` en la raíz del repositorio backend.
+El backend principal (módulo `app/ocupacion`) consulta `GET /vision/latest`
+en cada petición de la app, combina el resultado con los metadatos estáticos
+de cada espacio (nombre, capacidad, coordenadas) y lo expone en
+`GET /api/v1/ocupacion/spaces`.

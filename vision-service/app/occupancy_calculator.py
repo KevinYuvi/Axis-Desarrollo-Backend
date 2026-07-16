@@ -74,13 +74,9 @@ def _get_detection_method(source_type: str, people_count: Optional[int]) -> str:
 
 def analyze_space(request: AnalyzeRequest) -> AnalyzeData:
     """
-    Analiza un espacio usando únicamente fuente real configurada.
-
-    No usa mock.
-    No usa fallback.
-    No simula personas.
-
-    Si la cámara o YOLO fallan, devuelve estado "Sin datos".
+    Analiza un espacio a partir de su fuente configurada (cámara IP o archivo
+    local) y calcula las métricas de ocupación a partir de las personas
+    detectadas. Si la cámara o YOLO fallan, devuelve estado "Sin datos".
     """
 
     people_count = _detect_people_count(

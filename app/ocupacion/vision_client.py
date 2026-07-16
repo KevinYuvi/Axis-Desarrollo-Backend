@@ -22,10 +22,10 @@ _http_client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS)
 
 async def get_latest_snapshots() -> List[dict]:
     """
-    Consulta el último análisis automático (Fase 3) de todos los espacios en
+    Consulta el último análisis automático de todos los espacios en
     el vision-service. Nunca lanza: cualquier error de red, timeout o
     respuesta inválida se atrapa aquí y se traduce a una lista vacía, para
-    que quien llama use el fallback de Fase 1 sin romper la petición.
+    que quien llama use el fallback sin romper la petición.
 
     @return: lista de snapshots de GET /vision/latest, o [] si no respondió
     """

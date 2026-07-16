@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-# ENTIDAD DE ANÁLISIS DE VISIÓN (Fase 2 — imagen/video local de prueba)
+# ENTIDAD DE ANÁLISIS DE VISIÓN — contrato de peticiones y respuestas del servicio
 
 SourceType = Literal["sample_image", "sample_video", "ip_camera_snapshot"]
 VisionSource = Literal["vision-service", "vision-service-fallback"]
@@ -10,8 +10,8 @@ OccupancyStatus = Literal["Disponible", "Próximo", "Ocupado", "Sin datos"]
 
 
 class AnalyzeRequest(BaseModel):
-    spaceId: str = Field(..., example="biblioteca-fica")
-    spaceName: str = Field(..., example="Biblioteca FICA")
+    spaceId: str = Field(..., example="biblioteca-cisco")
+    spaceName: str = Field(..., example="Biblioteca Cisco")
     totalSeats: int = Field(..., ge=0, example=40)
     computersTotal: int = Field(..., ge=0, example=12)
     sourceType: SourceType = Field(..., example="sample_image")
@@ -55,8 +55,7 @@ class LatestAnalysisItem(BaseModel):
     occupancyPercentage: Optional[int]
     status: OccupancyStatus
     analyzedAt: datetime
-    # No estaba en el contrato pedido para esta fase, pero sin este campo el
-    # frontend perdería la etiqueta "Fuente: Visión IA / Simulado" de Fase 2.
+    # El frontend usa este campo para la etiqueta "Fuente: Visión IA / Simulado".
     source: VisionSource
 
 

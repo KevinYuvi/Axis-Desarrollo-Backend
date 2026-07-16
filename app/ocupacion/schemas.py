@@ -2,18 +2,18 @@ from datetime import datetime
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
-# ENTIDAD OCUPACIÓN (Fase 1 — datos simulados, contrato listo para visión artificial)
+# ENTIDAD OCUPACIÓN — contrato de datos del módulo de ocupación por visión artificial
 
 TipoEspacio = Literal["library", "study_room", "computer_lab"]
 EstadoOcupacion = Literal["Disponible", "Próximo", "Ocupado", "Sin datos"]
 
 
 class EspacioOcupacion(BaseModel):
-    id: str = Field(..., example="biblioteca-fica")
-    name: str = Field(..., example="Biblioteca FICA")
-    description: str = Field(..., example="Biblioteca de la Facultad de Ingeniería, Ciencias Físicas y Matemática.")
+    id: str = Field(..., example="biblioteca-cisco")
+    name: str = Field(..., example="Biblioteca Cisco")
+    description: str = Field(..., example="Biblioteca Cisco de la Universidad Central.")
     type: TipoEspacio = Field(..., example="library")
-    building: str = Field(..., example="Facultad de Ingeniería")
+    building: str = Field(..., example="Universidad Central")
     floor: str = Field(..., example="Planta Baja")
     totalSeats: int = Field(..., ge=0, example=40)
     occupiedSeats: int = Field(..., ge=0, example=18)

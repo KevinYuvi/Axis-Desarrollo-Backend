@@ -6,10 +6,10 @@ def test_get_analysis_inexistente_devuelve_none():
 
 
 def test_save_and_get_analysis_guarda_el_ultimo_valor():
-    storage.save_analysis("biblioteca-fica", {"peopleCount": 3})
-    storage.save_analysis("biblioteca-fica", {"peopleCount": 7})
+    storage.save_analysis("biblioteca-cisco", {"peopleCount": 3})
+    storage.save_analysis("biblioteca-cisco", {"peopleCount": 7})
 
-    assert storage.get_analysis("biblioteca-fica") == {"peopleCount": 7}
+    assert storage.get_analysis("biblioteca-cisco") == {"peopleCount": 7}
 
 
 def test_get_all_analysis_incluye_todos_los_espacios_guardados():
@@ -27,7 +27,7 @@ def test_get_frame_inexistente_devuelve_none():
 
 
 def test_save_and_get_frame_guarda_el_ultimo_valor():
-    storage.save_frame("biblioteca-fica", b"jpeg-viejo")
-    storage.save_frame("biblioteca-fica", b"jpeg-nuevo")
+    storage.save_frame("biblioteca-cisco", b"jpeg-viejo")
+    storage.save_frame("biblioteca-cisco", b"jpeg-nuevo")
 
-    assert storage.get_frame("biblioteca-fica") == b"jpeg-nuevo"
+    assert storage.get_frame("biblioteca-cisco") == b"jpeg-nuevo"

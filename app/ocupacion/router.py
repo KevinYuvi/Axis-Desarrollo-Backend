@@ -15,7 +15,7 @@ router = APIRouter(prefix="/ocupacion", tags=["Ocupación"])
 async def list_occupancy_spaces():
     """
     Lista todos los espacios de estudio, combinados con el último análisis
-    automático del vision-service (Fase 3) cuando esté disponible.
+    automático del vision-service cuando esté disponible.
 
     @return dict: Objeto con estado, mensaje y la lista de espacios.
     """

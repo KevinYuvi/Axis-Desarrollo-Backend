@@ -23,5 +23,5 @@ MAX_VIDEO_SAMPLE_FRAMES = int(
 # Cámara IP del celular
 IP_CAMERA_SNAPSHOT_URL = os.getenv(
     "IP_CAMERA_SNAPSHOT_URL",
-    "http://10.186.95.91:8080/shot.jpg",
+    "http://192.168.18.2:8080/shot.jpg",
 )

@@ -167,16 +167,18 @@ async def poblar_base_datos():
     ])
 
     # =========================================================================
-    # EDIFICIO 6: Bibliotecas FICA (REAL) — conectan el módulo de ocupación
+    # EDIFICIO 6: Bibliotecas (REAL) — conectan el módulo de ocupación
     # (vision-service) con la BD académica: el svg_id coincide con el id del
-    # espacio monitoreado por cámara (p. ej. "biblioteca-fica").
+    # espacio monitoreado por cámara (p. ej. "biblioteca-cisco").
     # =========================================================================
     espacios_seed.extend([
         {
-            "nombre": "Biblioteca FICA", "bloque": "edificio_a", "tipo": "biblioteca", "capacidad": 60,
+            # Biblioteca Cisco de la Universidad Central: único espacio con
+            # cámara IP conectada; su svg_id enlaza con el módulo de ocupación.
+            "nombre": "Biblioteca Cisco", "bloque": "edificio_a", "tipo": "biblioteca", "capacidad": 60,
             "equipamiento": ["Mesas de estudio", "Wi-Fi", "Estanterías abiertas", "10 PCs de consulta"],
             "estado_actual": "disponible",
-            "coordenadas_gps": "-0.198310, -78.503950", "svg_id": "biblioteca-fica"
+            "coordenadas_gps": "-0.198310, -78.503950", "svg_id": "biblioteca-cisco"
         },
         {
             "nombre": "Sala de Estudio Grupal FICA", "bloque": "edificio_a", "tipo": "biblioteca", "capacidad": 24,

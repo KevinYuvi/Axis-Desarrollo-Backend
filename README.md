@@ -107,7 +107,7 @@ El `--host 0.0.0.0` es obligatorio para que otros dispositivos de la red puedan 
 ```
 GET http://localhost:8001/vision/latest                      → análisis de los 5 espacios
 GET http://localhost:8000/api/v1/ocupacion/spaces            → los mismos datos vía API principal
-GET http://localhost:8000/api/v1/ocupacion/spaces/biblioteca-fica/frame → última foto anotada por YOLO
+GET http://localhost:8000/api/v1/ocupacion/spaces/biblioteca-cisco/frame → última foto anotada por YOLO
 ```
 
 En la respuesta, `"source": "vision-service"` indica análisis real de cámara; `"vision-service-fallback"` indica dato simulado (espacio sin cámara o cámara inalcanzable).
@@ -120,7 +120,7 @@ Con MongoDB arriba (paso 2), poblar la colección `espacios` con los edificios r
 python seed.py
 ```
 
-El script **borra y repuebla** la colección `espacios` con los edificios reales (Edificio A, Edificio de Laboratorios, Bibliotecas FICA y edificios de contexto). Incluye la **Biblioteca FICA** con `svg_id: biblioteca-fica`, que enlaza el espacio académico con el módulo de ocupación por cámara.
+El script **borra y repuebla** la colección `espacios` con los edificios reales (Edificio A, Edificio de Laboratorios, Bibliotecas y edificios de contexto). Incluye la **Biblioteca Cisco de la Universidad Central** con `svg_id: biblioteca-cisco`, que enlaza el espacio académico con el módulo de ocupación por cámara.
 
 ---
 
@@ -169,5 +169,5 @@ Estado conocido: hay una falla preexistente en `app/reportes/test_reportes.py::t
 - **`no configuration file provided: not found` al correr Docker:** estás fuera de la carpeta del repositorio; el `docker-compose.yml` vive en la raíz de `Axis-Desarrollo-Backend`.
 - **Los celulares no llegan a la API:** confirmar que ambos servicios corren con `--host 0.0.0.0` y que el Firewall de Windows permite a Python/Docker en redes privadas (el aviso aparece la primera vez que se levanta cada servicio).
 - **Los dispositivos no se ven entre sí en la WiFi:** redes institucionales suelen tener aislamiento de clientes (AP isolation). Usar una red doméstica o el hotspot de un celular para conectar PC y celulares.
-- **La cámara dejó de analizarse (`vision-service-fallback` en biblioteca-fica):** la IP del celular-cámara probablemente cambió al reconectarse a la red. Verificar la IP en la app IP Webcam y actualizarla (paso 3).
+- **La cámara dejó de analizarse (`vision-service-fallback` en biblioteca-cisco):** la IP del celular-cámara probablemente cambió al reconectarse a la red. Verificar la IP en la app IP Webcam y actualizarla (paso 3).
 - **La base de datos está vacía tras el primer arranque:** es lo esperado — ejecutar `python seed.py` (paso 5) para poblar la colección `espacios`. Las reservas y reportes se crean desde la API (Swagger) o desde la app. El módulo de ocupación no depende de MongoDB.
