@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from datetime import datetime, timedelta
-
+from bson import ObjectId
+from bson.errors import InvalidId
 from app.reportes.schemas import ReporteCreate, ReporteResponse
 from app.database import db
 from app.usuarios.utils import requerir_roles
@@ -164,6 +165,35 @@ async def listar_reportes(
 
     return reportes
 
+@router.get(
+    "/{reporte_id}",
+    response_model=dict,
+    summary="Obtener detalle de un reporte",
+)
+async def obtener_detalle_reporte(
+    reporte_id: str,
+    usuario_actual: dict = Depends(requerir_roles("Admin", "Docente", "Estudiante")),
+):
+    try:
+        reporte_object_id = ObjectId(reporte_id)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El id del reporte no tiene un formato válido",
+        )
+
+    reporte = await coleccion_reportes.find_one({"_id": reporte_object_id})
+
+    if not reporte:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró el reporte",
+        )
+
+    reporte["id"] = str(reporte["_id"])
+    reporte.pop("_id", None)
+
+    return reporte
 
 @router.patch(
     "/{reporte_id}/estado",
